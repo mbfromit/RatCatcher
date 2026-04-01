@@ -49,7 +49,15 @@ $pvt = Join-Path $PSScriptRoot 'Private'
 . (Join-Path $pvt 'Get-NetworkEvidence.ps1')
 . (Join-Path $pvt 'New-ScanReport.ps1')
 . (Join-Path $pvt 'New-ExecBriefing.ps1')
+. (Join-Path $pvt 'New-ScanLogHtml.ps1')
 . (Join-Path $pvt 'Send-ScanReport.ps1')
+
+# Load logo for HTML reports (resize to ~600px to keep embedded size reasonable)
+$logoBase64 = ''
+$logoFile   = Join-Path $PSScriptRoot 'RatCatcher.png'
+if (Test-Path $logoFile) {
+    try { $logoBase64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($logoFile)) } catch { }
+}
 
 if ($SendEmail) {
     if (-not $SMTPServer)  { throw '-SMTPServer is required when -SendEmail is specified' }
@@ -184,9 +192,16 @@ $reportPath = New-ScanReport `
     -XorFindings          $xorFindings `
     -NetworkEvidence      $networkEvidence `
     -OutputPath           $OutputPath `
-    -ScanMetadata         $metadata
+    -ScanMetadata         $metadata `
+    -LogoBase64           $logoBase64
 
 Write-Log "Technical report: $reportPath"
+
+# Convert scan log to HTML now so its filename is available for the briefing link
+Write-Log "[9a/10] Converting scan log to HTML..."
+# (this Write-Log call is the last entry — flush then convert)
+$logHtmlPath = New-ScanLogHtml -LogPath $log -LogoBase64 $logoBase64 -ScanMetadata $metadata
+$log = $logHtmlPath   # update $log so summary still refers to correct file
 
 # ── Check 9b: Executive Briefing ──────────────────────────────────────────────
 Write-Log "[9b/10] Generating executive briefing..."
@@ -200,8 +215,10 @@ $briefingPath = New-ExecBriefing `
     -XorFindings          $xorFindings `
     -NetworkEvidence      $networkEvidence `
     -TechnicalReportPath  $reportPath `
+    -LogHtmlPath          $logHtmlPath `
     -OutputPath           $OutputPath `
-    -ScanMetadata         $metadata
+    -ScanMetadata         $metadata `
+    -LogoBase64           $logoBase64
 
 Write-Log "Executive briefing: $briefingPath"
 
@@ -227,6 +244,10 @@ Write-Log " Vulnerable (lockfile): $vulnCount"
 Write-Log " Critical findings   : $criticalCount"
 Write-Log " Technical report    : $reportPath"
 Write-Log " Executive briefing  : $briefingPath"
+
+# ── Launch briefing in browser ────────────────────────────────────────────────
+Write-Log "Opening executive briefing in browser..."
+try { Start-Process $briefingPath } catch { Write-Log "Could not auto-launch briefing: $_" 'WARN' }
 
 if ($vulnCount -gt 0 -or $criticalCount -gt 0) {
     Write-Log ' STATUS: COMPROMISED - isolate machine and review reports' 'WARN'

@@ -10,10 +10,10 @@ function New-ScanReport {
         [PSCustomObject[]]$XorFindings          = @(),
         [PSCustomObject[]]$NetworkEvidence      = @(),
         [Parameter(Mandatory)][string]$OutputPath,
-        [Parameter(Mandatory)][hashtable]$ScanMetadata
+        [Parameter(Mandatory)][hashtable]$ScanMetadata,
+        [string]$LogoBase64 = ''
     )
 
-    # Normalise: typed params coerce $null to $null (not @()) under strict mode
     $LockfileResults      = @($LockfileResults      | Where-Object { $_ })
     $Artifacts            = @($Artifacts            | Where-Object { $_ })
     $CacheFindings        = @($CacheFindings        | Where-Object { $_ })
@@ -22,178 +22,348 @@ function New-ScanReport {
     $XorFindings          = @($XorFindings          | Where-Object { $_ })
     $NetworkEvidence      = @($NetworkEvidence      | Where-Object { $_ })
 
-    $vulnProjects   = @($LockfileResults     | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto })
-    $allFindings    = $Artifacts + $CacheFindings + $DroppedPayloads + $PersistenceArtifacts + $XorFindings + $NetworkEvidence
-    $criticalCount  = @($allFindings | Where-Object { $_.Severity -eq 'Critical' }).Count
-    $overallStatus  = if ($vulnProjects.Count -gt 0 -or $allFindings.Count -gt 0) { 'COMPROMISED' } else { 'CLEAN' }
+    $vulnProjects  = @($LockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto })
+    $allFindings   = $Artifacts + $CacheFindings + $DroppedPayloads + $PersistenceArtifacts + $XorFindings + $NetworkEvidence
+    $criticalCount = @($allFindings | Where-Object { $_.Severity -eq 'Critical' }).Count
+    $overallStatus = if ($vulnProjects.Count -gt 0 -or $allFindings.Count -gt 0) { 'COMPROMISED' } else { 'CLEAN' }
 
-    $sb = [System.Text.StringBuilder]::new()
+    # ── Helpers ────────────────────────────────────────────────────────────────
+    function Esc([string]$s) { if (-not $s) { return '' }; $s.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;').Replace('"','&quot;') }
 
-    function Add-Section { param([string]$Title) [void]$sb.AppendLine(); [void]$sb.AppendLine($Title); [void]$sb.AppendLine('-' * 60) }
-    function Add-Line    { param([string]$Line)  [void]$sb.AppendLine($Line) }
-
-    [void]$sb.AppendLine('=' * 80)
-    [void]$sb.AppendLine('RATCATCHER - FORENSIC REPORT')
-    [void]$sb.AppendLine('=' * 80)
-
-    Add-Section 'EXECUTIVE SUMMARY'
-    Add-Line "Total projects scanned    : $($Projects.Count)"
-    Add-Line "Vulnerable (lockfile)     : $($vulnProjects.Count)"
-    Add-Line "Critical findings (total) : $criticalCount"
-    Add-Line "Overall status            : $overallStatus"
-    if ($overallStatus -eq 'COMPROMISED') {
-        Add-Line ''
-        Add-Line '*** ACTION REQUIRED: Evidence of compromise detected. Isolate this machine.'
-        Add-Line '*** Do NOT use for further development until remediation is complete.'
+    function SevBadge([string]$sev) {
+        $cls = switch ($sev) { 'Critical' {'b-critical'} 'High' {'b-high'} 'Medium' {'b-medium'} default {'b-low'} }
+        "<span class=`"badge $cls`">$(Esc $sev)</span>"
     }
 
-    Add-Section 'SCAN METADATA'
-    Add-Line "Timestamp     : $($ScanMetadata.Timestamp)"
-    Add-Line "Hostname      : $($ScanMetadata.Hostname)"
-    Add-Line "Username      : $($ScanMetadata.Username)"
-    Add-Line "Scan Duration : $($ScanMetadata.Duration)"
-    Add-Line "Paths Scanned : $($ScanMetadata.Paths -join ', ')"
-
-    Add-Section 'VULNERABLE PROJECTS (Lockfile Evidence)'
-    if ($vulnProjects.Count -eq 0) { Add-Line 'None.' } else {
-        foreach ($vp in $vulnProjects) {
-            Add-Line "Project  : $($vp.ProjectPath)"
-            Add-Line "Lockfile : $($vp.LockfileType) - $($vp.LockfilePath)"
-            if ($vp.HasVulnerableAxios)      { Add-Line "FINDING  : axios@$($vp.VulnerableAxiosVersion) - malicious version" }
-            if ($vp.HasMaliciousPlainCrypto) { Add-Line "FINDING  : plain-crypto-js@4.2.1 - postinstall dropper" }
-            Add-Line "FIX      : npm install axios@1.14.0 && npm cache clean --force && rm -rf node_modules && npm install"
-            Add-Line ''
-        }
+    function FindingCard($f, [string]$extra = '') {
+        $cls  = switch ($f.Severity) { 'Critical' {'f-critical'} 'High' {'f-high'} 'Medium' {'f-medium'} default {'f-low'} }
+        $hash = if ($f.Hash) { "<div class=`"f-row`"><span class=`"f-k`">SHA256</span><span class=`"f-v hash`">$(Esc $f.Hash)</span></div>" } else { '' }
+        @"
+<div class="finding $cls">
+  <div class="f-head">$(SevBadge $f.Severity)<span class="f-type">$(Esc $f.Type)</span></div>
+  <div class="f-meta">
+    <div class="f-row"><span class="f-k">PATH</span><span class="f-v">$(Esc $f.Path)</span></div>
+    $hash$extra
+    <div class="f-row"><span class="f-k">DETAIL</span><span class="f-v">$(Esc $f.Description)</span></div>
+  </div>
+</div>
+"@
     }
 
-    Add-Section 'FORENSIC ARTIFACTS (node_modules / setup.js / plaintext C2)'
-    if ($Artifacts.Count -eq 0) { Add-Line 'None.' } else {
-        foreach ($a in $Artifacts) {
-            Add-Line "Type     : $($a.Type)  Severity: $($a.Severity)"
-            Add-Line "Path     : $($a.Path)"
-            if ($a.Hash) { Add-Line "SHA256   : $($a.Hash)" }
-            Add-Line "Detail   : $($a.Description)"
-            Add-Line ''
-        }
+    function SectionHtml([string]$title, [string]$content, [int]$count = -1) {
+        $countBadge = if ($count -ge 0) { "<span class=`"rc-panel-count`">$count item$(if($count -ne 1){'s'})</span>" } else { '' }
+        @"
+<div class="rc-panel">
+  <div class="rc-panel-hdr"><span class="rc-panel-title">$title</span>$countBadge</div>
+  <div class="rc-panel-body">$content</div>
+</div>
+"@
     }
 
-    Add-Section 'NPM CACHE FINDINGS'
-    if ($CacheFindings.Count -eq 0) { Add-Line 'None.' } else {
-        foreach ($c in $CacheFindings) {
-            Add-Line "Type     : $($c.Type)  Severity: $($c.Severity)"
-            Add-Line "Package  : $($c.PackageName)@$($c.Version)"
-            Add-Line "Path     : $($c.Path)"
-            Add-Line "Detail   : $($c.Description)"
-            Add-Line ''
-        }
+    # ── Build sections ─────────────────────────────────────────────────────────
+
+    # Vulnerable projects
+    $vulnHtml = if ($vulnProjects.Count -eq 0) { '<p class="rc-panel-none">No vulnerable lockfile entries detected.</p>' } else {
+        ($vulnProjects | ForEach-Object {
+            $vp = $_
+            $axiosRow  = if ($vp.HasVulnerableAxios)      { "<div class=`"f-row`"><span class=`"f-k`">FINDING</span><span class=`"f-v`"><span class=`"badge b-critical`">CRITICAL</span> axios@$(Esc $vp.VulnerableAxiosVersion)</span></div>" } else { '' }
+            $cryptoRow = if ($vp.HasMaliciousPlainCrypto)  { "<div class=`"f-row`"><span class=`"f-k`">FINDING</span><span class=`"f-v`"><span class=`"badge b-critical`">CRITICAL</span> plain-crypto-js@4.2.1</span></div>" } else { '' }
+            @"
+<div class="finding f-critical">
+  <div class="f-head"><span class="badge b-critical">VULNERABLE</span><span class="f-type">$(Esc $vp.ProjectPath)</span></div>
+  <div class="f-meta">
+    <div class="f-row"><span class="f-k">LOCKFILE</span><span class="f-v">$(Esc $vp.LockfileType) — $(Esc $vp.LockfilePath)</span></div>
+    $axiosRow$cryptoRow
+    <div class="f-row"><span class="f-k">FIX</span><span class="f-v">npm install axios@1.14.0 &amp;&amp; npm cache clean --force &amp;&amp; rm -rf node_modules &amp;&amp; npm install</span></div>
+  </div>
+</div>
+"@
+        }) -join ''
     }
 
-    Add-Section 'DROPPED PAYLOADS (RAT binaries/scripts in temp/appdata)'
-    if ($DroppedPayloads.Count -eq 0) { Add-Line 'None detected.' } else {
-        foreach ($dp in $DroppedPayloads) {
-            Add-Line "Type     : $($dp.Type)  Severity: $($dp.Severity)"
-            Add-Line "Path     : $($dp.Path)"
-            Add-Line "Created  : $($dp.CreationTime)"
-            if ($dp.Hash) { Add-Line "SHA256   : $($dp.Hash)" }
-            Add-Line "Detail   : $($dp.Description)"
-            Add-Line ''
-        }
+    # Generic findings sections
+    $artifactsHtml = if ($Artifacts.Count -eq 0) { '<p class="rc-panel-none">No malicious package files detected.</p>' } else {
+        ($Artifacts | ForEach-Object { FindingCard $_ }) -join ''
     }
 
-    Add-Section 'PERSISTENCE MECHANISMS (scheduled tasks / registry / startup)'
-    if ($PersistenceArtifacts.Count -eq 0) { Add-Line 'None detected.' } else {
-        foreach ($pa in $PersistenceArtifacts) {
-            Add-Line "Type     : $($pa.Type)  Severity: $($pa.Severity)"
-            Add-Line "Location : $($pa.Location)"
-            Add-Line "Name     : $($pa.Name)"
-            Add-Line "Value    : $($pa.Value)"
-            Add-Line "Detail   : $($pa.Description)"
-            Add-Line ''
-        }
+    $cacheHtml = if ($CacheFindings.Count -eq 0) { '<p class="rc-panel-none">No poisoned cache entries detected.</p>' } else {
+        ($CacheFindings | ForEach-Object {
+            $pkg = "<div class=`"f-row`"><span class=`"f-k`">PACKAGE</span><span class=`"f-v`">$(Esc $_.PackageName)@$(Esc $_.Version)</span></div>"
+            FindingCard $_ $pkg
+        }) -join ''
     }
 
-    Add-Section 'XOR-ENCODED INDICATORS (ObfuscatedC2 via OrDeR_7077 key)'
-    if ($XorFindings.Count -eq 0) { Add-Line 'None detected.' } else {
-        foreach ($xf in $XorFindings) {
-            Add-Line "Type      : $($xf.Type)  Severity: $($xf.Severity)"
-            Add-Line "Path      : $($xf.Path)"
-            Add-Line "Indicator : $($xf.DecodedIndicator)"
-            Add-Line "Detail    : $($xf.Description)"
-            Add-Line ''
-        }
+    $payloadsHtml = if ($DroppedPayloads.Count -eq 0) { '<p class="rc-panel-none">No dropped payloads detected.</p>' } else {
+        ($DroppedPayloads | ForEach-Object {
+            $created = "<div class=`"f-row`"><span class=`"f-k`">CREATED</span><span class=`"f-v`">$(Esc $_.CreationTime)</span></div>"
+            FindingCard $_ $created
+        }) -join ''
     }
 
-    Add-Section 'NETWORK EVIDENCE (DNS cache / active connections / firewall log)'
-    if ($NetworkEvidence.Count -eq 0) { Add-Line 'None detected.' } else {
-        foreach ($ne in $NetworkEvidence) {
-            Add-Line "Type     : $($ne.Type)  Severity: $($ne.Severity)"
-            Add-Line "Detail   : $($ne.Detail)"
-            Add-Line "Summary  : $($ne.Description)"
-            Add-Line ''
-        }
+    $persistHtml = if ($PersistenceArtifacts.Count -eq 0) { '<p class="rc-panel-none">No persistence mechanisms detected.</p>' } else {
+        ($PersistenceArtifacts | ForEach-Object {
+            $pa = $_
+            $cls = switch ($pa.Severity) { 'Critical' {'f-critical'} 'High' {'f-high'} 'Medium' {'f-medium'} default {'f-low'} }
+            @"
+<div class="finding $cls">
+  <div class="f-head">$(SevBadge $pa.Severity)<span class="f-type">$(Esc $pa.Type)</span></div>
+  <div class="f-meta">
+    <div class="f-row"><span class="f-k">LOCATION</span><span class="f-v">$(Esc $pa.Location)</span></div>
+    <div class="f-row"><span class="f-k">NAME</span><span class="f-v">$(Esc $pa.Name)</span></div>
+    <div class="f-row"><span class="f-k">VALUE</span><span class="f-v">$(Esc $pa.Value)</span></div>
+    <div class="f-row"><span class="f-k">DETAIL</span><span class="f-v">$(Esc $pa.Description)</span></div>
+  </div>
+</div>
+"@
+        }) -join ''
     }
 
-    Add-Section 'CREDENTIALS AT RISK'
-    Add-Line 'If COMPROMISED status - rotate ALL of the following immediately:'
-    $homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
-    $credPaths = @(
+    $xorHtml = if ($XorFindings.Count -eq 0) { '<p class="rc-panel-none">No XOR-encoded C2 indicators detected.</p>' } else {
+        ($XorFindings | ForEach-Object {
+            $ind = "<div class=`"f-row`"><span class=`"f-k`">INDICATOR</span><span class=`"f-v hash`">$(Esc $_.DecodedIndicator)</span></div>"
+            FindingCard $_ $ind
+        }) -join ''
+    }
+
+    $netHtml = if ($NetworkEvidence.Count -eq 0) { '<p class="rc-panel-none">No network contact evidence detected.</p>' } else {
+        ($NetworkEvidence | ForEach-Object {
+            $ne = $_
+            $cls = switch ($ne.Severity) { 'Critical' {'f-critical'} 'High' {'f-high'} 'Medium' {'f-medium'} default {'f-low'} }
+            @"
+<div class="finding $cls">
+  <div class="f-head">$(SevBadge $ne.Severity)<span class="f-type">$(Esc $ne.Type)</span></div>
+  <div class="f-meta">
+    <div class="f-row"><span class="f-k">DETAIL</span><span class="f-v">$(Esc $ne.Detail)</span></div>
+    <div class="f-row"><span class="f-k">SUMMARY</span><span class="f-v">$(Esc $ne.Description)</span></div>
+  </div>
+</div>
+"@
+        }) -join ''
+    }
+
+    # Credentials
+    $homeDir  = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
+    $credRows = @(
         (Join-Path $homeDir '.ssh'),
         (Join-Path $homeDir '.gitconfig'),
         (Join-Path $homeDir '.npmrc'),
-        (Join-Path $homeDir '.aws/credentials'),
-        (Join-Path $homeDir '.kube/config'),
-        (Join-Path $homeDir '.docker/config.json')
-    )
-    foreach ($cp in $credPaths) {
-        $label = if (Test-Path $cp) { '  PRESENT - ROTATE:' } else { '  (not found):' }
-        Add-Line "$label $cp"
+        (Join-Path $homeDir '.aws\credentials'),
+        (Join-Path $homeDir '.kube\config'),
+        (Join-Path $homeDir '.docker\config.json')
+    ) | ForEach-Object {
+        $present = Test-Path $_
+        $label   = if ($present) { '<span class="badge b-high">PRESENT</span>' } else { '<span class="badge b-info">NOT FOUND</span>' }
+        "<div class=`"f-row`"><span class=`"f-k`">$label</span><span class=`"f-v`">$(Esc $_)</span></div>"
     }
-    Add-Line 'Also rotate: GitHub tokens, NPM tokens, AWS/GCP/Azure keys, container registry secrets, K8s service accounts'
+    $credNote = if ($overallStatus -eq 'COMPROMISED') { '<p style="color:var(--fail);margin-bottom:12px;font-weight:600;">&#9888; ROTATE ALL PRESENT CREDENTIALS IMMEDIATELY</p>' } else { '<p style="color:var(--text-muted);margin-bottom:12px;">No compromise detected — verify these are not exposed as a precaution.</p>' }
+    $credHtml = @"
+$credNote
+<div class="f-meta">$($credRows -join '')</div>
+<p style="color:var(--text-muted);font-size:12px;margin-top:12px;">Also rotate: GitHub tokens, NPM tokens, AWS/GCP/Azure keys, container registry secrets, K8s service accounts</p>
+"@
 
-    Add-Section 'APPENDIX: IOC REFERENCE'
-    Add-Line 'Malicious packages : axios@1.14.1, axios@0.30.4, plain-crypto-js@4.2.1'
-    Add-Line 'setup.js SHA256    : e10b1fa84f1d6481625f741b69892780140d4e0e7769e7491e5f4d894c2e0e09'
-    Add-Line 'C2 domain/IP/port  : sfrclak.com, 142.11.206.73:8000'
-    Add-Line 'XOR key/constant   : OrDeR_7077 / 333 (0x4D mask)'
-    Add-Line 'Attack window      : 2026-03-31 00:21 UTC - 2026-03-31 03:15 UTC'
+    # IOC reference
+    $iocHtml = @'
+<table class="rc-table">
+<thead><tr><th>INDICATOR</th><th>TYPE</th><th>DESCRIPTION</th></tr></thead>
+<tbody>
+<tr><td class="td-name"><code>axios</code> v1.14.1</td><td class="td-what">npm package</td><td class="td-what">Compromised release</td></tr>
+<tr><td class="td-name"><code>axios</code> v0.30.4</td><td class="td-what">npm package</td><td class="td-what">Compromised release</td></tr>
+<tr><td class="td-name"><code>plain-crypto-js</code> v4.2.1</td><td class="td-what">npm package</td><td class="td-what">Malicious RAT-dropping dependency</td></tr>
+<tr><td class="td-name" style="font-family:monospace;font-size:11px;">e10b1fa84f1d6481...</td><td class="td-what">SHA-256</td><td class="td-what">Known malicious setup.js</td></tr>
+<tr><td class="td-name"><code>sfrclak.com</code></td><td class="td-what">Domain</td><td class="td-what">Attacker C2 domain</td></tr>
+<tr><td class="td-name"><code>142.11.206.73</code></td><td class="td-what">IP address</td><td class="td-what">Attacker C2 server</td></tr>
+<tr><td class="td-name"><code>142.11.206.73:8000</code></td><td class="td-what">IP:Port</td><td class="td-what">RAT beacon endpoint</td></tr>
+<tr><td class="td-name"><code>OrDeR_7077</code> / 333</td><td class="td-what">XOR key</td><td class="td-what">C2 obfuscation parameters</td></tr>
+</tbody></table>
+'@
 
-    Add-Section 'REMEDIATION GUIDANCE'
-    Add-Line 'STEP 1 - Lockfile cleanup:'
-    Add-Line '  npm install axios@1.14.0   (or axios@0.30.3 for v0.x)'
-    Add-Line '  npm cache clean --force'
-    Add-Line '  Remove-Item node_modules -Recurse -Force && npm install'
-    Add-Line ''
-    Add-Line 'STEP 2 - If dropped payloads or persistence found:'
-    Add-Line '  1. Isolate machine from network immediately'
-    Add-Line '  2. Capture forensic disk image before any changes'
-    Add-Line '  3. Remove scheduled tasks, registry run keys, startup entries found above'
-    Add-Line '  4. Delete dropped payload files found above'
-    Add-Line '  5. Check Windows Event Log (EID 4688 / Sysmon 1) for node.exe child processes around 2026-03-31'
-    Add-Line '  6. Review network logs for traffic to sfrclak.com or 142.11.206.73:8000'
-    Add-Line '  7. Consider full OS re-image if active connection was found'
-    Add-Line ''
-    Add-Line 'STEP 3 - Credential rotation (mandatory if COMPROMISED):'
-    Add-Line '  SSH keys, GitHub tokens, NPM tokens, AWS/GCP/Azure credentials,'
-    Add-Line '  Kubernetes configs, container registry secrets, any secrets in .env files'
+    # Remediation
+    $remHtml = @'
+<div class="action-list">
+<div class="action-item"><div class="action-n">1</div><div class="action-t"><strong>Lockfile cleanup:</strong><br>
+<code>npm install axios@1.14.0</code> &nbsp;(or <code>axios@0.30.3</code> for v0.x)<br>
+<code>npm cache clean --force</code><br>
+<code>Remove-Item node_modules -Recurse -Force &amp;&amp; npm install</code></div></div>
+<div class="action-item"><div class="action-n">2</div><div class="action-t"><strong>If dropped payloads or persistence found:</strong><br>
+Isolate machine from network immediately. Capture forensic disk image before any changes.<br>
+Remove scheduled tasks, registry run keys, and startup entries listed above.<br>
+Delete dropped payload files listed above.</div></div>
+<div class="action-item"><div class="action-n">3</div><div class="action-t"><strong>Credential rotation (mandatory if COMPROMISED):</strong><br>
+SSH keys, GitHub tokens, NPM tokens, AWS/GCP/Azure credentials, Kubernetes configs, container registry secrets, .env secrets</div></div>
+<div class="action-item"><div class="action-n">4</div><div class="action-t"><strong>Investigation:</strong><br>
+Review Windows Event Log (EID 4688 / Sysmon 1) for node.exe child processes around 2026-03-31.<br>
+Check network logs for traffic to <code>sfrclak.com</code> or <code>142.11.206.73:8000</code>.<br>
+Consider full OS re-image if an active C2 connection was found.</div></div>
+</div>
+'@
+
+    # Metadata
+    $metaHtml = @"
+<div class="meta-grid">
+  <span class="meta-k">Timestamp</span><span class="meta-v">$(Esc $ScanMetadata.Timestamp)</span>
+  <span class="meta-k">Hostname</span><span class="meta-v">$(Esc $ScanMetadata.Hostname)</span>
+  <span class="meta-k">Username</span><span class="meta-v">$(Esc $ScanMetadata.Username)</span>
+  <span class="meta-k">Scan Duration</span><span class="meta-v">$(Esc $ScanMetadata.Duration)</span>
+  <span class="meta-k">Paths Scanned</span><span class="meta-v">$(Esc ($ScanMetadata.Paths -join ', '))</span>
+  <span class="meta-k">Projects Found</span><span class="meta-v">$($Projects.Count)</span>
+</div>
+"@
+
+    # ── Compose page ───────────────────────────────────────────────────────────
+    $logoImg      = if ($LogoBase64) { "<img src=`"data:image/png;base64,$LogoBase64`" class=`"rc-logo`" alt=`"RatCatcher`">" } else { '' }
+    $verdictClass = if ($overallStatus -eq 'COMPROMISED') { 'compromised' } else { 'clean' }
+    $s1class      = if ($vulnProjects.Count -gt 0) { ' s-danger' } else { '' }
+    $s2class      = if ($criticalCount -gt 0)      { ' s-danger' } else { '' }
+    $s3class      = if ($overallStatus -eq 'COMPROMISED') { ' s-danger' } else { '' }
+
+    $css = @'
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#06090f;--panel:#0d1117;--card:#161b22;--border:#21303f;--border-a:#1f6feb;--accent:#00d4ff;--accent2:#58a6ff;--text:#c9d1d9;--text-muted:#6e7681;--text-bright:#e6edf3;--critical:#ff4444;--critical-bg:rgba(255,68,68,.12);--high:#ff8800;--high-bg:rgba(255,136,0,.12);--medium:#e3b341;--medium-bg:rgba(227,179,65,.12);--low:#58a6ff;--low-bg:rgba(88,166,255,.12);--pass:#3fb950;--fail:#f85149;--warn:#e3b341}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--accent2);text-decoration:none}a:hover{text-decoration:underline}
+code{background:var(--card);padding:2px 6px;border-radius:3px;font-family:'Consolas','Courier New',monospace;font-size:12px;color:var(--accent);border:1px solid var(--border)}
+strong{color:var(--text-bright)}
+.rc-header{background:var(--panel);border-bottom:2px solid var(--accent);padding:0 32px;display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.5),0 0 40px rgba(0,212,255,.05)}
+.rc-logo{height:68px;width:auto;padding:8px 0}
+.rc-header-text{flex:1}
+.rc-title{font-size:22px;font-weight:700;color:var(--accent);letter-spacing:4px;font-family:'Consolas',monospace}
+.rc-subtitle{font-size:11px;color:var(--text-muted);letter-spacing:1px;margin-top:2px}
+.rc-hv{padding:8px 20px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;font-family:'Consolas',monospace}
+.rc-hv.clean{background:rgba(63,185,80,.15);color:var(--pass);border:1px solid rgba(63,185,80,.3)}
+.rc-hv.compromised{background:rgba(248,81,73,.15);color:var(--fail);border:1px solid rgba(248,81,73,.3);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.4)}50%{box-shadow:0 0 0 8px rgba(248,81,73,0)}}
+.rc-main{max-width:1100px;margin:0 auto;padding:32px}
+.rc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.rc-stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px 16px;text-align:center;position:relative;overflow:hidden}
+.rc-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent2)}
+.rc-stat.s-danger::before{background:var(--critical)}
+.rc-stat-val{font-size:36px;font-weight:800;color:var(--accent2);font-family:'Consolas',monospace;line-height:1;margin-bottom:6px}
+.rc-stat.s-danger .rc-stat-val{color:var(--critical)}
+.rc-stat-lbl{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase}
+.rc-panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;margin-bottom:20px;overflow:hidden}
+.rc-panel-hdr{background:var(--card);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:10px}
+.rc-panel-title{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--accent2);font-family:'Consolas',monospace}
+.rc-panel-count{margin-left:auto;font-size:11px;color:var(--text-muted);font-family:'Consolas',monospace}
+.rc-panel-body{padding:20px}
+.rc-panel-none{color:var(--text-muted);font-style:italic;font-size:13px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-family:'Consolas',monospace;line-height:1.6}
+.b-critical{background:var(--critical-bg);color:var(--critical);border:1px solid rgba(255,68,68,.3)}
+.b-high{background:var(--high-bg);color:var(--high);border:1px solid rgba(255,136,0,.3)}
+.b-medium{background:var(--medium-bg);color:var(--medium);border:1px solid rgba(227,179,65,.3)}
+.b-low{background:var(--low-bg);color:var(--low);border:1px solid rgba(88,166,255,.3)}
+.b-pass{background:rgba(63,185,80,.15);color:var(--pass);border:1px solid rgba(63,185,80,.3)}
+.b-fail{background:rgba(248,81,73,.15);color:var(--fail);border:1px solid rgba(248,81,73,.3)}
+.b-info{background:rgba(88,166,255,.08);color:var(--accent2);border:1px solid rgba(88,166,255,.2)}
+.finding{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--critical);border-radius:4px;padding:14px 16px;margin-bottom:10px}
+.finding.f-high{border-left-color:var(--high)}
+.finding.f-medium{border-left-color:var(--medium)}
+.finding.f-low{border-left-color:var(--low)}
+.finding:last-child{margin-bottom:0}
+.f-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.f-type{font-weight:600;font-size:13px;color:var(--text-bright);font-family:'Consolas',monospace}
+.f-meta{display:grid;gap:4px}
+.f-row{display:grid;grid-template-columns:90px 1fr;gap:8px;font-size:12px}
+.f-k{color:var(--text-muted);letter-spacing:.5px;padding-top:1px}
+.f-v{color:var(--text);word-break:break-all;font-family:'Consolas',monospace;font-size:11px}
+.f-v.hash{color:var(--accent2)}
+.rc-table{width:100%;border-collapse:collapse}
+.rc-table th{background:var(--card);color:var(--accent2);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);font-family:'Consolas',monospace;white-space:nowrap}
+.rc-table td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+.rc-table tr:last-child td{border-bottom:none}
+.rc-table tr:hover td{background:rgba(255,255,255,.02)}
+.td-name{color:var(--text-bright);font-weight:500}
+.td-what{color:var(--text-muted);font-size:12px}
+.action-list{display:grid;gap:0}
+.action-item{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
+.action-item:last-child{border-bottom:none}
+.action-n{width:26px;height:26px;background:var(--card);border:1px solid var(--border-a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent2);flex-shrink:0;margin-top:2px}
+.action-t{color:var(--text);font-size:13px;line-height:1.7}
+.meta-grid{display:grid;grid-template-columns:150px 1fr;gap:6px 16px;font-size:13px}
+.meta-k{color:var(--text-muted)}
+.meta-v{color:var(--text-bright);font-family:'Consolas',monospace;font-size:12px;word-break:break-all}
+.rc-footer{text-align:center;padding:24px 32px;color:var(--text-muted);font-size:11px;border-top:1px solid var(--border);margin-top:32px;font-family:'Consolas',monospace;letter-spacing:.5px}
+'@
+
+    $html = @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RatCatcher — Forensic Report — $(Esc $ScanMetadata.Hostname)</title>
+<style>$css</style>
+</head>
+<body>
+<div class="rc-header">
+  $logoImg
+  <div class="rc-header-text">
+    <div class="rc-title">RATCATCHER</div>
+    <div class="rc-subtitle">FORENSIC REPORT &nbsp;&#47;&#47;&nbsp; $(Esc $ScanMetadata.Hostname) &nbsp;&#47;&#47;&nbsp; $(Esc $ScanMetadata.Timestamp)</div>
+  </div>
+  <div class="rc-hv $verdictClass">$overallStatus</div>
+</div>
+
+<div class="rc-main">
+
+  <div class="rc-stats">
+    <div class="rc-stat">
+      <div class="rc-stat-val">$($Projects.Count)</div>
+      <div class="rc-stat-lbl">Projects Scanned</div>
+    </div>
+    <div class="rc-stat$s1class">
+      <div class="rc-stat-val">$($vulnProjects.Count)</div>
+      <div class="rc-stat-lbl">Vulnerable (Lockfile)</div>
+    </div>
+    <div class="rc-stat$s2class">
+      <div class="rc-stat-val">$criticalCount</div>
+      <div class="rc-stat-lbl">Critical Findings</div>
+    </div>
+    <div class="rc-stat$s3class">
+      <div class="rc-stat-val" style="font-size:20px;padding-top:8px;">$overallStatus</div>
+      <div class="rc-stat-lbl">Overall Status</div>
+    </div>
+  </div>
+
+  $(SectionHtml 'VULNERABLE PROJECTS — LOCKFILE EVIDENCE' $vulnHtml $vulnProjects.Count)
+  $(SectionHtml 'FORENSIC ARTIFACTS — NODE_MODULES / SETUP.JS / PLAINTEXT C2' $artifactsHtml $Artifacts.Count)
+  $(SectionHtml 'NPM CACHE FINDINGS' $cacheHtml $CacheFindings.Count)
+  $(SectionHtml 'DROPPED MALWARE PAYLOADS' $payloadsHtml $DroppedPayloads.Count)
+  $(SectionHtml 'PERSISTENCE MECHANISMS' $persistHtml $PersistenceArtifacts.Count)
+  $(SectionHtml 'XOR-ENCODED C2 INDICATORS' $xorHtml $XorFindings.Count)
+  $(SectionHtml 'NETWORK CONTACT EVIDENCE' $netHtml $NetworkEvidence.Count)
+  $(SectionHtml 'CREDENTIALS AT RISK' $credHtml)
+  $(SectionHtml 'IOC REFERENCE' $iocHtml)
+  $(SectionHtml 'REMEDIATION GUIDANCE' $remHtml)
+  $(SectionHtml 'SCAN METADATA' $metaHtml)
+
+</div>
+
+<div class="rc-footer">
+  RATCATCHER v1.0 &nbsp;&#47;&#47;&nbsp; $(Esc $ScanMetadata.Hostname) &nbsp;&#47;&#47;&nbsp; Scan completed $(Esc $ScanMetadata.Timestamp)
+</div>
+</body>
+</html>
+"@
 
     # ── Write file ─────────────────────────────────────────────────────────────
     $null = New-Item -ItemType Directory -Path $OutputPath -Force
-    $ts       = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $hn       = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'unknown' }
-    $filePath = Join-Path $OutputPath "RatCatcher-Report-${hn}-${ts}.txt"
+    $ts   = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $hn   = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'unknown' }
+    $file = Join-Path $OutputPath "RatCatcher-Report-${hn}-${ts}.html"
 
-    $sb.ToString() | Set-Content -Path $filePath -Encoding UTF8
+    $html | Set-Content -Path $file -Encoding UTF8
 
     if ($IsWindows -or $env:OS -eq 'Windows_NT') {
         try {
-            $acl = Get-Acl $filePath
+            $acl = Get-Acl $file
             $acl.SetAccessRuleProtection($true, $false)
             $acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule('Administrators','FullControl','Allow')))
-            Set-Acl $filePath $acl
+            Set-Acl $file $acl
         } catch { Write-Warning "Could not restrict report permissions: $_" }
     } else {
-        & chmod 600 $filePath 2>$null
+        & chmod 600 $file 2>$null
     }
 
-    return $filePath
+    return $file
 }

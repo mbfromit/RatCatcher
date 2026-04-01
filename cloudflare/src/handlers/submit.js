@@ -26,11 +26,11 @@ export async function handleSubmit(request, env) {
   }
 
   const MAX = 25 * 1024 * 1024
-  const briefBytes  = await briefFile.arrayBuffer()
-  const reportBytes = await reportFile.arrayBuffer()
-  if (briefBytes.byteLength > MAX || reportBytes.byteLength > MAX) {
+  if (briefFile.size > MAX || reportFile.size > MAX) {
     return json({ error: 'File exceeds 25MB limit' }, 413)
   }
+  const briefBytes  = await briefFile.arrayBuffer()
+  const reportBytes = await reportFile.arrayBuffer()
 
   const id        = crypto.randomUUID()
   const briefKey  = `submissions/${id}/brief.html`
@@ -42,6 +42,8 @@ export async function handleSubmit(request, env) {
   } catch {
     return json({ error: 'Storage failure' }, 500)
   }
+
+  const toInt = v => { const n = parseInt(v, 10); return Number.isNaN(n) ? null : n }
 
   try {
     await env.DB.prepare(`
@@ -57,14 +59,19 @@ export async function handleSubmit(request, env) {
       formData.get('scan_timestamp'),
       formData.get('duration')    || null,
       formData.get('verdict'),
-      parseInt(formData.get('projects_scanned')) || null,
-      parseInt(formData.get('vulnerable_count')) || null,
-      parseInt(formData.get('critical_count'))   || null,
+      toInt(formData.get('projects_scanned')),
+      toInt(formData.get('vulnerable_count')),
+      toInt(formData.get('critical_count')),
       formData.get('paths_scanned') || null,
       briefKey,
       reportKey
     ).run()
   } catch {
+    // R2 cleanup: don't leave orphaned objects if DB insert failed
+    try {
+      await env.BUCKET.delete(briefKey)
+      await env.BUCKET.delete(reportKey)
+    } catch { /* best-effort cleanup */ }
     return json({ error: 'Database failure' }, 500)
   }
 

@@ -42,6 +42,13 @@ function Find-PersistenceArtifacts {
     } catch { Write-Warning "Scheduled task scan failed: $_" }
 
     # ── Registry Run Keys ──────────────────────────────────────────────────────
+    # Known-legitimate AppData locations for Run keys — Store apps, Teams, OneDrive
+    $safeRunKeyPaths = @(
+        '[/\\]Microsoft[/\\]WindowsApps[/\\]',
+        '[/\\]Microsoft[/\\]Teams[/\\]',
+        '[/\\]Microsoft[/\\]OneDrive[/\\]'
+    )
+
     $runKeys = @(
         'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run',
         'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run',
@@ -58,10 +65,11 @@ function Find-PersistenceArtifacts {
             Where-Object { $_.Name -notin @('PSPath','PSParentPath','PSChildName','PSDrive','PSProvider') } |
             ForEach-Object {
                 $val  = $_.Value.ToLower()
+                $isKnownSafe      = $safeRunKeyPaths | Where-Object { $val -match $_ }
                 $isSuspiciousPath = $suspiciousPaths | Where-Object { $val -match $_ }
                 $hasNodeOrScript  = $val -match 'node|npm|\.ps1|\.vbs|\.bat|\.cmd|\.js'
 
-                if ($isSuspiciousPath -or $hasNodeOrScript) {
+                if (-not $isKnownSafe -and ($isSuspiciousPath -or $hasNodeOrScript)) {
                     $findings.Add([PSCustomObject]@{
                         Type        = 'SuspiciousRunKey'
                         Location    = $keyPath

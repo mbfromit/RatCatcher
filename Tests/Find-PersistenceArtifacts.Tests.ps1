@@ -41,6 +41,21 @@ Describe 'Find-PersistenceArtifacts' {
         }
     }
 
+    Context 'Microsoft Store app (WindowsApps) Run key is not flagged' {
+        BeforeAll {
+            Mock Get-ScheduledTask { @() }
+            Mock Get-ItemProperty {
+                [PSCustomObject]@{
+                    PSPath  = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+                    'Teams' = '"C:\Users\user\AppData\Local\Microsoft\WindowsApps\MSTeams_8wekyb3d8bbwe\ms-teams.exe" msteams:system-initiated'
+                }
+            } -ParameterFilter { $Path -match 'Run' }
+        }
+        It 'does not flag ms-teams.exe in WindowsApps as a suspicious Run key' {
+            Find-PersistenceArtifacts -AttackWindowStart $attackStart | Should -BeNullOrEmpty
+        }
+    }
+
     Context 'no suspicious entries' {
         BeforeAll {
             Mock Get-ScheduledTask { @() }

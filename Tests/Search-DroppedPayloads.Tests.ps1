@@ -52,6 +52,24 @@ Describe 'Search-DroppedPayloads' {
         }
     }
 
+    Context 'validly signed PE is not flagged' {
+        BeforeAll {
+            $tmpDir  = Join-Path $TestDrive 'signed-pe'
+            $null    = New-Item -ItemType Directory -Path $tmpDir -Force
+            $exePath = Join-Path $tmpDir 'signed_installer.exe'
+            [byte[]]$mzBytes = 0x4D, 0x5A, 0x90, 0x00
+            [IO.File]::WriteAllBytes($exePath, $mzBytes)
+            (Get-Item $exePath).CreationTime = $attackStart.AddHours(1)
+
+            Mock Get-AuthenticodeSignature {
+                [PSCustomObject]@{ Status = [System.Management.Automation.SignatureStatus]::Valid }
+            }
+        }
+        It 'does not flag a PE with a valid Authenticode signature' {
+            Search-DroppedPayloads -ScanPaths @($tmpDir) -AttackWindowStart $attackStart | Should -BeNullOrEmpty
+        }
+    }
+
     Context 'file created before attack window' {
         BeforeAll {
             $tmpDir  = Join-Path $TestDrive 'old-temp'

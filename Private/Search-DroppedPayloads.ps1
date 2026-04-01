@@ -36,6 +36,11 @@ function Search-DroppedPayloads {
                     try {
                         $bytes = [IO.File]::ReadAllBytes($file.FullName) | Select-Object -First 2
                         if ($bytes.Count -ge 2 -and $bytes[0] -eq 0x4D -and $bytes[1] -eq 0x5A) {
+                            # Skip PE files with a valid Authenticode signature (installer binaries, Store apps, etc.)
+                            try {
+                                $sig = Get-AuthenticodeSignature -FilePath $file.FullName -ErrorAction SilentlyContinue
+                                if ($sig -and $sig.Status -eq 'Valid') { continue }
+                            } catch { }
                             $type = 'DroppedExecutable'
                             $sev  = 'Critical'
                         }

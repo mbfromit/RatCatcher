@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 // Mock handler modules before importing the worker
 vi.mock('../src/handlers/submit.js', () => ({

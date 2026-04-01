@@ -1,0 +1,54 @@
+BeforeAll {
+    . "$PSScriptRoot/../Private/Find-PersistenceArtifacts.ps1"
+    $attackStart = [datetime]::Parse('2026-03-31T00:21:00Z').ToLocalTime()
+}
+
+Describe 'Find-PersistenceArtifacts' {
+    Context 'suspicious scheduled task registered after attack' {
+        BeforeAll {
+            Mock Get-ScheduledTask {
+                @([PSCustomObject]@{
+                    TaskName  = 'WindowsUpdateHelper'
+                    TaskPath  = '\'
+                    State     = 'Ready'
+                    Actions   = @([PSCustomObject]@{ Execute = 'powershell.exe'; Arguments = '-WindowStyle Hidden -File C:\Users\user\AppData\Local\Temp\a1b2c3.ps1' })
+                    Date      = $attackStart.AddHours(2).ToString('o')
+                })
+            }
+        }
+        It 'returns a SuspiciousScheduledTask finding' {
+            $results = Find-PersistenceArtifacts -AttackWindowStart $attackStart
+            ($results | Where-Object Type -eq 'SuspiciousScheduledTask') | Should -Not -BeNullOrEmpty
+        }
+        It 'severity is Critical' {
+            $results = Find-PersistenceArtifacts -AttackWindowStart $attackStart
+            ($results | Where-Object Type -eq 'SuspiciousScheduledTask').Severity | Should -Be 'Critical'
+        }
+    }
+
+    Context 'registry Run key with temp-path value added after attack' {
+        BeforeAll {
+            Mock Get-ItemProperty {
+                [PSCustomObject]@{
+                    PSPath       = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+                    'NodeHelper' = 'C:\Users\user\AppData\Local\Temp\node_helper.exe'
+                }
+            } -ParameterFilter { $Path -match 'Run' }
+        }
+        It 'returns a SuspiciousRunKey finding' {
+            $results = Find-PersistenceArtifacts -AttackWindowStart $attackStart
+            ($results | Where-Object Type -eq 'SuspiciousRunKey') | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    Context 'no suspicious entries' {
+        BeforeAll {
+            Mock Get-ScheduledTask { @() }
+            Mock Get-ItemProperty  { [PSCustomObject]@{ PSPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' } }
+        }
+        It 'returns empty without throwing' {
+            { Find-PersistenceArtifacts -AttackWindowStart $attackStart } | Should -Not -Throw
+            Find-PersistenceArtifacts -AttackWindowStart $attackStart    | Should -BeNullOrEmpty
+        }
+    }
+}

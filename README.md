@@ -7,7 +7,7 @@ A PowerShell forensic scanner for detecting evidence of the **March 31, 2026 Axi
 You can read more about the attack here: https://thehackernews.com/2026/03/axios-supply-chain-attack-pushes-cross.html
 
 ---
-NOTE: It is recommended that you stop and save all work before running.  This scan can take a very long time. Best to kick it off just before leaving for the day.
+NOTE: It is recommended that you stop and save all work before running.  This scan can take a very long time. 
 ## Download and Install
 
 ### Prerequisites

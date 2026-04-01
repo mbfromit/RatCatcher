@@ -1,22 +1,30 @@
 function Submit-ScanToApi {
+    [CmdletBinding()]
     param(
-        [string]$ApiUrl,
-        [string]$Password,
-        [string]$Hostname,
-        [string]$Username,
-        [string]$ScanTimestamp,
-        [string]$Duration,
-        [string]$Verdict,
-        [int]$ProjectsScanned,
-        [int]$VulnerableCount,
-        [int]$CriticalCount,
-        [string]$PathsScanned,
-        [string]$BriefPath,
-        [string]$ReportPath
+        [Parameter(Mandatory)][string]$ApiUrl,
+        [Parameter(Mandatory)][string]$Password,
+        [Parameter(Mandatory)][string]$Hostname,
+        [Parameter(Mandatory)][string]$Username,
+        [Parameter(Mandatory)][string]$ScanTimestamp,
+        [Parameter(Mandatory)][string]$Duration,
+        [Parameter(Mandatory)][string]$Verdict,
+        [Parameter(Mandatory)][int]$ProjectsScanned,
+        [Parameter(Mandatory)][int]$VulnerableCount,
+        [Parameter(Mandatory)][int]$CriticalCount,
+        [Parameter(Mandatory)][string]$PathsScanned,
+        [Parameter(Mandatory)][string]$BriefPath,
+        [Parameter(Mandatory)][string]$ReportPath
     )
 
     if ([string]::IsNullOrEmpty($Password)) {
         return @{ Status = 'skipped' }
+    }
+
+    if (-not (Test-Path -LiteralPath $BriefPath -PathType Leaf)) {
+        return @{ Status = 'error'; Message = "Brief file not found: $BriefPath" }
+    }
+    if (-not (Test-Path -LiteralPath $ReportPath -PathType Leaf)) {
+        return @{ Status = 'error'; Message = "Report file not found: $ReportPath" }
     }
 
     try {
@@ -34,11 +42,19 @@ function Submit-ScanToApi {
             brief            = Get-Item -LiteralPath $BriefPath
             report           = Get-Item -LiteralPath $ReportPath
         }
+        if (-not $response.id) {
+            return @{ Status = 'error'; Message = 'API response missing id field' }
+        }
         return @{ Status = 'success'; Id = $response.id }
     }
     catch {
         $statusCode = $null
-        try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { }
+        if ($_.Exception -is [System.Net.WebException]) {
+            $httpResponse = $_.Exception.Response
+            if ($httpResponse -and $httpResponse.StatusCode) {
+                $statusCode = [int]$httpResponse.StatusCode
+            }
+        }
         if ($statusCode -eq 401) {
             return @{ Status = 'wrong-password' }
         }

@@ -62,7 +62,7 @@ Describe 'Submit-ScanToApi' {
         BeforeAll {
             Mock Invoke-RestMethod {
                 $ex = [System.Net.WebException]::new('401')
-                $response = [PSCustomObject]@{ StatusCode = [System.Net.HttpStatusCode]::Unauthorized }
+                $response = [PSCustomObject]@{ StatusCode = 401 }
                 Add-Member -InputObject $ex -MemberType NoteProperty -Name Response -Value $response -Force
                 throw $ex
             }

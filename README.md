@@ -2,6 +2,8 @@
 
 A PowerShell forensic scanner for detecting evidence of the **March 31, 2026 Axios NPM supply chain attack**, which distributed a malicious `plain-crypto-js` dependency via compromised versions of the `axios` package (v1.14.1 and v0.30.4). The scanner runs ten checks covering the full compromise kill chain and produces both a detailed technical report and an executive briefing.
 
+You can read more about the attack here: https://thehackernews.com/2026/03/axios-supply-chain-attack-pushes-cross.html
+
 ---
 
 ## Download and Install

@@ -5,7 +5,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "ratcatcher"
-database_id = "PLACEHOLDER"
+database_id = "b535d898-8007-4fc8-8f41-63da8dd1f1a3"
 
 [[r2_buckets]]
 binding = "BUCKET"

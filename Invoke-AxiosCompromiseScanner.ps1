@@ -20,8 +20,8 @@
 #>
 [CmdletBinding()]
 param(
-    [string[]]$Path         = $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { @('C:\Users','C:\Dev','C:\Projects') } else { @($env:HOME,'/opt','/srv') }),
-    [string]$OutputPath     = $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'C:\Logs' } else { '/tmp' }),
+    [string[]]$Path         = $(if ($env:OS -eq 'Windows_NT') { @('C:\') } else { @('/') }),
+    [string]$OutputPath     = $(if ($env:OS -eq 'Windows_NT') { 'C:\Logs' } else { '/tmp' }),
     [switch]$SendEmail,
     [string]$SMTPServer,
     [int]$SMTPPort          = 587,
@@ -54,6 +54,45 @@ if ($SendEmail) {
     if (-not $ToAddress)   { throw '-ToAddress is required when -SendEmail is specified' }
 }
 
+# ── Resolve scan paths (expand drive roots, skip OS/system folders) ───────────
+$excludedTopLevel = @(
+    'Windows', 'Program Files', 'Program Files (x86)',
+    'ProgramData', 'Recovery', 'System Volume Information',
+    'MSOCache', 'OneDriveTemp', '$Recycle.Bin', 'Config.Msi'
+)
+
+$resolvedPaths = [System.Collections.Generic.List[string]]::new()
+foreach ($root in $Path) {
+    $rootItem = Get-Item -LiteralPath $root -ErrorAction SilentlyContinue
+    if (-not $rootItem) { Write-Warning "Path not found, skipping: $root"; continue }
+
+    # If the user passed a drive root (e.g. C:\), expand to its immediate subdirectories
+    # so we can exclude OS folders and show the user exactly what will be scanned
+    if ($rootItem.FullName -match '^[A-Za-z]:\\?$') {
+        Get-ChildItem -LiteralPath $rootItem.FullName -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin $excludedTopLevel -and $_.Name -notmatch '^\$' } |
+        ForEach-Object { $resolvedPaths.Add($_.FullName) }
+    } else {
+        $resolvedPaths.Add($rootItem.FullName)
+    }
+}
+
+# ── Confirmation prompt ────────────────────────────────────────────────────────
+Write-Host ''
+Write-Host '================================================================'
+Write-Host '  AXIOS NPM SUPPLY CHAIN COMPROMISE SCANNER'
+Write-Host '================================================================'
+Write-Host ''
+Write-Host '  The following folders will be scanned on this machine:'
+Write-Host ''
+foreach ($p in $resolvedPaths) { Write-Host "    $p" }
+Write-Host ''
+Write-Host '  Skipped (OS/system):' ($excludedTopLevel -join ', ')
+Write-Host ''
+$confirm = Read-Host '  Press ENTER to start the scan, or type Q to quit'
+if ($confirm -match '^[Qq]') { Write-Host 'Scan cancelled.'; exit 0 }
+Write-Host ''
+
 $null = New-Item -ItemType Directory -Path $OutputPath -Force
 $hn   = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'unknown' }
 $ts   = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -71,11 +110,11 @@ $startTime    = Get-Date
 
 Write-Log "Axios Compromise Scanner - 10-check suite"
 Write-Log "Attack window start: $attackWindow"
-Write-Log "Scanning paths: $($Path -join ', ')"
+Write-Log "Scanning paths: $($resolvedPaths -join ', ')"
 
 # ── Check 1: Discover Node.js projects ────────────────────────────────────────
 Write-Log "[1/10] Discovering Node.js projects..."
-$projects = Get-NodeProjects -Path $Path
+$projects = Get-NodeProjects -Path $resolvedPaths
 Write-Log "Found $($projects.Count) project(s)"
 
 # ── Checks 2 & 3: Lockfile analysis + artifact detection (parallel on PS7) ───

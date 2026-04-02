@@ -83,6 +83,7 @@ export async function handleReport(request, env, id, type) {
     if (!obj) return notFound()
 
     let html = await obj.text()
+    const safeId = id.replace(/[^a-zA-Z0-9\-_]/g, '')
 
     const backBar = `<div style="position:sticky;top:0;z-index:9999;background:#1a1a1a;border-bottom:1px solid #333;padding:8px 20px;font-family:'Courier New',monospace;display:flex;align-items:center;gap:12px">` +
       `<button onclick="window.close()" style="background:#00ff41;color:#0f0f0f;border:none;padding:5px 14px;font-family:monospace;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:1px">&larr; BACK TO DASHBOARD</button>` +
@@ -94,10 +95,10 @@ export async function handleReport(request, env, id, type) {
     if (type === 'brief') {
       const script = `<script>
 function _rcViewFull(){
-  try{if(window.opener&&window.opener.vw){window.opener.vw('${id}','full');return}}catch(e){}
+  try{if(window.opener&&window.opener.vw){window.opener.vw('${safeId}','full');return}}catch(e){}
   var pw=prompt('Admin password:','');
   if(!pw)return;
-  fetch('/ratcatcher/api/report/${id}/full',{headers:{'X-Admin-Password':pw}})
+  fetch('/ratcatcher/api/report/${safeId}/full',{headers:{'X-Admin-Password':pw}})
     .then(function(r){return r.ok?r.blob():Promise.reject(r.status)})
     .then(function(b){window.open(URL.createObjectURL(b),'_blank')})
     .catch(function(e){alert('Failed to load report ('+e+')')})
@@ -117,7 +118,7 @@ function _rcViewFull(){
     if (type === 'full') {
       // Count findings and persist if not yet stored
       if (!row.findings_count) {
-        const matches = html.match(/<div class="finding /g)
+        const matches = html.match(/<div class="finding[" ]/g)
         const count = matches ? matches.length : 0
         if (count > 0) {
           try {
@@ -156,7 +157,7 @@ function _rcViewFull(){
       // Inject ack script
       const ackScript = `<script>
 (function(){
-  var SUB='${id}',B='/ratcatcher',PW='';
+  var SUB='${safeId}',B='/ratcatcher',PW='';
   try{PW=window.opener&&window.opener.pw||'';}catch(e){}
 
   function getHeaders(){return{'X-Admin-Password':PW,'Content-Type':'application/json'}}

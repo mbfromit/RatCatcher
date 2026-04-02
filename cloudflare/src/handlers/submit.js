@@ -1,11 +1,21 @@
 import { json } from '../util.js'
 
 export async function handleSubmit(request, env) {
+  // PowerShell's Invoke-RestMethod sends a quoted boundary (boundary="xxx") which
+  // Cloudflare Workers' formData() cannot parse. Strip the quotes if present.
+  const ct = request.headers.get('content-type') || ''
+  const unquotedCt = ct.replace(/boundary="([^"]+)"/, 'boundary=$1')
+  if (unquotedCt !== ct) {
+    const headers = new Headers(request.headers)
+    headers.set('content-type', unquotedCt)
+    request = new Request(request.url, { method: request.method, headers, body: request.body, duplex: 'half' })
+  }
+
   let formData
   try {
     formData = await request.formData()
   } catch {
-    return json({ error: 'Invalid form data' }, 400)
+    return json({ error: 'Invalid form data', contentType: ct }, 400)
   }
 
   const password = formData.get('password')

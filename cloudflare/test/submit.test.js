@@ -40,11 +40,18 @@ function makeForm(fields = {}, files = {}) {
   return fd
 }
 
-function makeRequest(formData) {
-  return new Request('https://mbfromit.com/ratcatcher/submit', {
+function makeRequest(formData, { quotedBoundary = false } = {}) {
+  const req = new Request('https://mbfromit.com/ratcatcher/submit', {
     method: 'POST',
     body: formData
   })
+  if (!quotedBoundary) return req
+  // Simulate PowerShell's Invoke-RestMethod which sends boundary="xxx" (quoted)
+  const ct = req.headers.get('content-type') || ''
+  const quotedCt = ct.replace(/boundary=([^;]+)/, 'boundary="$1"')
+  const headers = new Headers(req.headers)
+  headers.set('content-type', quotedCt)
+  return new Request(req.url, { method: req.method, headers, body: req.body, duplex: 'half' })
 }
 
 describe('handleSubmit', () => {
@@ -88,6 +95,15 @@ describe('handleSubmit', () => {
   it('returns 201 with a UUID on valid submission', async () => {
     const env = makeEnv()
     const req = makeRequest(makeForm())
+    const res = await handleSubmit(req, env)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.id).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('accepts a quoted boundary (PowerShell Invoke-RestMethod compat)', async () => {
+    const env = makeEnv()
+    const req = makeRequest(makeForm(), { quotedBoundary: true })
     const res = await handleSubmit(req, env)
     expect(res.status).toBe(201)
     const body = await res.json()

@@ -124,12 +124,15 @@ export async function handleReport(request, env, id, type) {
     let html = await obj.text()
     const safeId = id.replace(/[^a-zA-Z0-9\-_]/g, '')
 
-    const bulkBtn = type === 'full'
-      ? `<button id="rc-bulk-ack" style="background:none;border:1px solid #2a3f5f;color:#58a6ff;padding:5px 14px;font-family:monospace;font-size:0.82rem;cursor:pointer;letter-spacing:1px;margin-left:auto">&#9745; BULK ACKNOWLEDGE</button>`
+    const bulkBtns = type === 'full'
+      ? `<span style="margin-left:auto;display:flex;gap:8px">`
+        + `<button id="rc-bulk-ack" style="background:none;border:1px solid #2a3f5f;color:#58a6ff;padding:5px 14px;font-family:monospace;font-size:0.82rem;cursor:pointer;letter-spacing:1px">&#9745; BULK ACKNOWLEDGE</button>`
+        + `<button id="rc-bulk-threat" style="background:none;border:1px solid #5f2a2a;color:#f85149;padding:5px 14px;font-family:monospace;font-size:0.82rem;cursor:pointer;letter-spacing:1px">&#9888; BULK CONFIRM THREAT</button>`
+        + `</span>`
       : ''
     const backBar = `<div style="position:sticky;top:0;z-index:9999;background:#1a1a1a;border-bottom:1px solid #333;padding:8px 20px;font-family:'Courier New',monospace;display:flex;align-items:center;gap:12px">` +
       `<button onclick="window.close()" style="background:#00ff41;color:#0f0f0f;border:none;padding:5px 14px;font-family:monospace;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:1px">&larr; BACK TO DASHBOARD</button>` +
-      `<span style="color:#555;font-size:0.75rem">${type === 'brief' ? 'EXECUTIVE BRIEFING' : 'TECHNICAL REPORT'}</span>${bulkBtn}</div>`
+      `<span style="color:#555;font-size:0.75rem">${type === 'brief' ? 'EXECUTIVE BRIEFING' : 'TECHNICAL REPORT'}</span>${bulkBtns}</div>`
     html = html.includes('<body')
       ? html.replace(/(<body[^>]*>)/, '$1' + backBar)
       : backBar + html
@@ -321,24 +324,32 @@ function _rcViewFull(){
     return unacked;
   }
 
-  function openBulkModal(){
+  function openBulkModal(isThreat){
     var unacked=getUnackedFindings();
-    if(!unacked.length){alert('All findings are already acknowledged.');return;}
+    if(!unacked.length){alert('All findings are already processed.');return;}
     var dlg=document.getElementById('rc-m-dialog');
-    dlg.className='rc-modal bulk';
-    document.getElementById('rc-m-title').textContent='BULK ACKNOWLEDGE ('+unacked.length+' findings)';
+    dlg.className=isThreat?'rc-modal threat':'rc-modal bulk';
+    document.getElementById('rc-m-title').textContent=isThreat
+      ?'BULK CONFIRM THREAT ('+unacked.length+' findings)'
+      :'BULK ACKNOWLEDGE ('+unacked.length+' findings)';
     document.getElementById('rc-m-path').textContent='';
-    document.getElementById('rc-m-desc').textContent='Enter one reason that applies to all '+unacked.length+' un-acknowledged findings. This will acknowledge them all at once.';
-    document.getElementById('rc-m-save').textContent='Acknowledge All ('+unacked.length+')';
-    document.getElementById('rc-m-save').onclick=function(){bulkSave(unacked)};
-    document.getElementById('rc-m-reason').placeholder='e.g. None of these findings are related to the Axios supply-chain attack per MS Copilot analysis. Reviewed by mberry 2026-04-02.';
+    document.getElementById('rc-m-desc').textContent=isThreat
+      ?'Describe the confirmed threats. All '+unacked.length+' un-processed findings will be flagged as POSITIVE FINDING.'
+      :'Enter one reason that applies to all '+unacked.length+' un-acknowledged findings. This will acknowledge them all at once.';
+    document.getElementById('rc-m-save').textContent=isThreat
+      ?'Confirm All Threats ('+unacked.length+')'
+      :'Acknowledge All ('+unacked.length+')';
+    document.getElementById('rc-m-save').onclick=function(){bulkSave(unacked,isThreat)};
+    document.getElementById('rc-m-reason').placeholder=isThreat
+      ?'e.g. All findings confirmed as Axios supply-chain compromise. Escalated to IR team.'
+      :'e.g. None of these findings are related to the Axios supply-chain attack per MS Copilot analysis. Reviewed by mberry 2026-04-02.';
     document.getElementById('rc-m-reason').value='';
     document.getElementById('rc-m-err').textContent='';
     overlay.classList.add('open');
     setTimeout(function(){document.getElementById('rc-m-reason').focus()},50);
   }
 
-  function bulkSave(unacked){
+  function bulkSave(unacked,isThreat){
     var reason=document.getElementById('rc-m-reason').value.trim();
     if(!reason){document.getElementById('rc-m-err').textContent='Reason is required.';return;}
     var saveBtn=document.getElementById('rc-m-save');
@@ -353,13 +364,13 @@ function _rcViewFull(){
         return fetch(B+'/api/submissions/'+SUB+'/acks',{
           method:'POST',
           headers:getHeaders(),
-          body:JSON.stringify({finding_hash:item.hash,reason:reason,is_threat:false})
+          body:JSON.stringify({finding_hash:item.hash,reason:reason,is_threat:!!isThreat})
         })
         .then(function(r){return r.json().then(function(b){return{status:r.status,body:b}})})
         .then(function(res){
           if(res.status===200||res.status===201||res.status===409){
             done++;
-            markDone(item.el,reason,res.body.acknowledged_at||new Date().toISOString(),false);
+            markDone(item.el,reason,res.body.acknowledged_at||new Date().toISOString(),!!isThreat);
           } else { failed++; }
           saveBtn.textContent='Saving... '+done+'/'+total;
         })
@@ -369,7 +380,7 @@ function _rcViewFull(){
 
     chain.then(function(){
       saveBtn.disabled=false;
-      saveBtn.textContent='Acknowledge All';
+      saveBtn.textContent=isThreat?'Confirm All Threats':'Acknowledge All';
       document.getElementById('rc-m-save').onclick=saveAck;
       if(failed===0){
         overlay.classList.remove('open');
@@ -379,9 +390,11 @@ function _rcViewFull(){
     });
   }
 
-  // Wire up bulk button
-  var bulkBtn=document.getElementById('rc-bulk-ack');
-  if(bulkBtn)bulkBtn.onclick=openBulkModal;
+  // Wire up bulk buttons
+  var bulkAckBtn=document.getElementById('rc-bulk-ack');
+  if(bulkAckBtn)bulkAckBtn.onclick=function(){openBulkModal(false)};
+  var bulkThreatBtn=document.getElementById('rc-bulk-threat');
+  if(bulkThreatBtn)bulkThreatBtn.onclick=function(){openBulkModal(true)};
 
 
   async function hashFinding(type,path){

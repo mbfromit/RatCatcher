@@ -1,7 +1,7 @@
 import { handleSubmit }                                    from './handlers/submit.js'
 import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport } from './handlers/api.js'
 import { handleDashboard }                                 from './handlers/dashboard.js'
-import { handleGetAcks, handlePostAck }                   from './handlers/ack.js'
+import { handleGetAcks, handlePostAck, handleUpdateFindingsCount } from './handlers/ack.js'
 
 export default {
   async fetch(request, env, ctx) {
@@ -17,6 +17,11 @@ export default {
     const deleteMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)$/)
     if (deleteMatch && method === 'DELETE') {
       return handleDeleteSubmission(request, env, deleteMatch[1])
+    }
+
+    const fcMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)\/findings-count$/)
+    if (fcMatch && method === 'PUT') {
+      return handleUpdateFindingsCount(request, env, fcMatch[1])
     }
 
     const ackMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)\/acks$/)

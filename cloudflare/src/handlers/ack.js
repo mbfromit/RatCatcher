@@ -1,5 +1,23 @@
 import { json, checkAdminPassword } from '../util.js'
 
+export async function handleUpdateFindingsCount(request, env, submissionId) {
+  if (!checkAdminPassword(request, env)) return json({ error: 'Unauthorized' }, 401)
+
+  let body
+  try { body = await request.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
+
+  const count = body?.count
+  if (typeof count !== 'number' || count < 0) return json({ error: 'Invalid count' }, 400)
+
+  try {
+    await env.DB.prepare('UPDATE submissions SET findings_count = ? WHERE id = ?')
+      .bind(count, submissionId).run()
+    return json({ ok: true, findings_count: count })
+  } catch {
+    return json({ error: 'Database error' }, 500)
+  }
+}
+
 export async function handleGetAcks(request, env, submissionId) {
   if (!checkAdminPassword(request, env)) return json({ error: 'Unauthorized' }, 401)
 

@@ -284,6 +284,7 @@ function _rcViewFull(){
 
   async function initFindings(acksMap){
     var findings=document.querySelectorAll('.finding');
+    var uniqueHashes=new Set();
     for(var i=0;i<findings.length;i++){
       var el=findings[i];
       var typeEl=el.querySelector('.f-type');
@@ -291,6 +292,7 @@ function _rcViewFull(){
       var path=getPathFromFinding(el);
       var hash=await hashFinding(type,path);
       el.dataset.fhash=hash;
+      uniqueHashes.add(hash);
       if(acksMap[hash]){
         markAcked(el,acksMap[hash].reason,acksMap[hash].acknowledged_at);
       } else {
@@ -303,6 +305,14 @@ function _rcViewFull(){
         })(hash,el,path||type);
         el.appendChild(btn);
       }
+    }
+    // Correct findings_count if HTML has duplicate finding divs
+    if(uniqueHashes.size!==findings.length){
+      fetch(B+'/api/submissions/'+SUB+'/findings-count',{
+        method:'PUT',
+        headers:getHeaders(),
+        body:JSON.stringify({count:uniqueHashes.size})
+      }).catch(function(){});
     }
   }
 

@@ -1,6 +1,7 @@
 import { handleSubmit }                                    from './handlers/submit.js'
 import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport } from './handlers/api.js'
 import { handleDashboard }                                 from './handlers/dashboard.js'
+import { handleGetAcks, handlePostAck }                   from './handlers/ack.js'
 
 export default {
   async fetch(request, env, ctx) {
@@ -16,6 +17,13 @@ export default {
     const deleteMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)$/)
     if (deleteMatch && method === 'DELETE') {
       return handleDeleteSubmission(request, env, deleteMatch[1])
+    }
+
+    const ackMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)\/acks$/)
+    if (ackMatch) {
+      if (method === 'GET')  return handleGetAcks(request, env, ackMatch[1])
+      if (method === 'POST') return handlePostAck(request, env, ackMatch[1])
+      return new Response('Method Not Allowed', { status: 405 })
     }
 
     if (method !== 'GET') return new Response('Method Not Allowed', { status: 405 })

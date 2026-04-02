@@ -92,16 +92,32 @@ export async function handleReport(request, env, id, type) {
       : backBar + html
 
     if (type === 'brief') {
-      // Replace file-relative rc-links with dashboard API URLs.
-      // The scan log is not submitted to the dashboard so that link is removed.
+      // The brief is opened as a blob: URL by the dashboard, so file-relative hrefs
+      // and even absolute API URLs won't work (blob: context has no path, and API
+      // requires auth headers the browser won't send on a plain navigation).
+      // Inject a small script that calls window.opener.vw() — the dashboard's own
+      // fetch-with-auth function — to open the full report correctly.
+      const script = `<script>
+function _rcViewFull(){
+  try{if(window.opener&&window.opener.vw){window.opener.vw('${id}','full');return}}catch(e){}
+  var pw=prompt('Admin password:','');
+  if(!pw)return;
+  fetch('/ratcatcher/api/report/${id}/full',{headers:{'X-Admin-Password':pw}})
+    .then(function(r){return r.ok?r.blob():Promise.reject(r.status)})
+    .then(function(b){window.open(URL.createObjectURL(b),'_blank')})
+    .catch(function(e){alert('Failed to load report ('+e+')')})
+}
+<\/script>`
+      html = html.replace('</head>', script + '</head>')
+      // Replace file-relative rc-links; scan log is not submitted so remove that link
       html = html.replace(
         /<div class="rc-links">[\s\S]*?<\/div>/,
-        '<div class="rc-links"><a class="rc-link" href="./full">&#128202; Technical Forensic Report</a></div>'
+        '<div class="rc-links"><a class="rc-link" href="#" onclick="_rcViewFull();return false">&#128202; Technical Forensic Report</a></div>'
       )
       // Fix the secondary report link in the Scan Integrity panel
       html = html.replace(
         /(<span class="meta-k">Technical Report<\/span><span class="meta-v">)<a href="[^"]*">/g,
-        '$1<a href="./full">'
+        '$1<a href="#" onclick="_rcViewFull();return false">'
       )
     }
 

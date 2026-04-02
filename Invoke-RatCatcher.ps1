@@ -271,8 +271,16 @@ try { Start-Process $briefingPath } catch { Write-Log "Could not auto-launch bri
 
 if ($vulnCount -gt 0 -or $criticalCount -gt 0) {
     Write-Log ' STATUS: COMPROMISED - isolate machine and review reports' 'WARN'
-    exit 1
 } else {
     Write-Log ' STATUS: CLEAN - no compromise evidence found across all 10 checks'
-    exit 0
 }
+
+Write-Log ''
+Write-Log '═══════════════════════════════════════'
+Write-Log ' SECURITY REMINDER'
+Write-Log ' If you changed your ExecutionPolicy to run this scan,'
+Write-Log ' restore it now by closing this window or running:'
+Write-Log '   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Restricted'
+Write-Log '═══════════════════════════════════════'
+
+if ($vulnCount -gt 0 -or $criticalCount -gt 0) { exit 1 } else { exit 0 }

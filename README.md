@@ -37,6 +37,14 @@ If you haven't run unsigned PowerShell scripts before, you may need to adjust th
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
+> **Important:** This only changes the policy for the current PowerShell window. After the scan completes, close the PowerShell window or restore the default policy by running:
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope Process -ExecutionPolicy Restricted
+> ```
+>
+> Leaving the execution policy on Bypass allows any script to run without warning, which is a security risk.
+
 ---
 
 ## Running the Scanner

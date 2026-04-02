@@ -66,6 +66,7 @@ tr:hover td{background:#1a1a1a}
     <h1>RATCATCHER</h1>
     <span class="badge">Manager Dashboard</span>
     <button class="gear" id="admtog" title="Admin Tools">&#9881; Admin</button>
+    <button class="gear" id="logout" title="Sign out">&#9211; Logout</button>
   </div>
   <div class="stats">
     <div class="stat"><div class="lbl">Total Scans</div><div class="val" id="s-total">-</div></div>
@@ -88,7 +89,7 @@ tr:hover td{background:#1a1a1a}
   </div>
 </div>
 <script>
-const B='/ratcatcher',L=50;let pw='',pg=1;
+const B='/ratcatcher',L=50;let pw='',pg=1,refreshTimer=null;
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 async function api(p){return fetch(B+p,{headers:{'X-Admin-Password':pw}})}
 async function chkAuth(){
@@ -133,10 +134,23 @@ async function vw(id,type='brief'){
   const blob=await r.blob();
   window.open(URL.createObjectURL(blob),'_blank');
 }
+async function refresh(){try{await Promise.all([loadStats(),loadRows()])}catch(e){}}
 async function showDash(){
   document.getElementById('login').style.display='none';
   document.getElementById('dash').style.display='block';
   await Promise.all([loadStats(),loadRows()]);
+  if(refreshTimer)clearInterval(refreshTimer);
+  refreshTimer=setInterval(refresh,30000);
+}
+function logout(){
+  if(refreshTimer)clearInterval(refreshTimer);
+  pw='';sessionStorage.removeItem('rcpw');
+  document.getElementById('dash').style.display='none';
+  document.getElementById('dash').classList.remove('admin-on');
+  document.getElementById('admtog').classList.remove('active');
+  document.getElementById('login').style.display='flex';
+  document.getElementById('pw').value='';
+  document.getElementById('lerr').textContent='';
 }
 document.getElementById('lf').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -157,6 +171,7 @@ document.getElementById('admtog').addEventListener('click',function(){
   this.classList.toggle('active');
   document.getElementById('dash').classList.toggle('admin-on');
 });
+document.getElementById('logout').addEventListener('click',logout);
 document.getElementById('pp').addEventListener('click',()=>{pg--;loadRows()});
 document.getElementById('pn').addEventListener('click',()=>{pg++;loadRows()});
 pw=sessionStorage.getItem('rcpw')||'';

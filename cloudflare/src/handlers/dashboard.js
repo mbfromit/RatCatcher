@@ -110,7 +110,7 @@ async function loadRows(){
       tr.innerHTML='<td>'+esc(dt)+'</td><td>'+esc(s.hostname)+'</td><td>'+esc(s.username)+'</td>'
         +'<td>'+esc(s.duration||'—')+'</td>'
         +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')+'</td>'
-        +'<td><button class="vbtn" onclick="vw(\''+esc(s.id)+'\')">View</button></td>';
+        +'<td><button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;)">View</button></td>';
       tb.appendChild(tr);
     });
   }

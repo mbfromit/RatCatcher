@@ -24,10 +24,13 @@ export async function handleSubmissions(request, env) {
     const total = countRow?.total ?? 0
 
     const rowsStmt = env.DB.prepare(`
-      SELECT s.*, CASE WHEN s.submitted_at = latest.max_at THEN 1 ELSE 0 END AS is_latest
+      SELECT s.*,
+        CASE WHEN s.submitted_at = latest.max_at THEN 1 ELSE 0 END AS is_latest,
+        COALESCE(ac.ack_count, 0) AS ack_count,
+        CASE WHEN s.findings_count > 0 AND COALESCE(ac.ack_count, 0) >= s.findings_count THEN 1 ELSE 0 END AS reviewed
       FROM (
         SELECT id, hostname, username, submitted_at, verdict, duration,
-               projects_scanned, vulnerable_count, critical_count
+               projects_scanned, vulnerable_count, critical_count, findings_count
         FROM submissions${where}
         ORDER BY submitted_at DESC
         LIMIT ? OFFSET ?
@@ -35,6 +38,9 @@ export async function handleSubmissions(request, env) {
       LEFT JOIN (
         SELECT hostname, MAX(submitted_at) AS max_at FROM submissions GROUP BY hostname
       ) latest ON s.hostname = latest.hostname
+      LEFT JOIN (
+        SELECT submission_id, COUNT(*) AS ack_count FROM finding_acknowledgements GROUP BY submission_id
+      ) ac ON s.id = ac.submission_id
     `)
     const rows = await rowsStmt.bind(...binds, limit, offset).all()
 

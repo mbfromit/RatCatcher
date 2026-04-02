@@ -110,7 +110,7 @@ async function loadRows(){
       tr.innerHTML='<td>'+esc(dt)+'</td><td>'+esc(s.hostname)+'</td><td>'+esc(s.username)+'</td>'
         +'<td>'+esc(s.duration||'—')+'</td>'
         +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')+'</td>'
-        +'<td><button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;)">View</button></td>';
+        +'<td><button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;,&#39;brief&#39;)">Exec Brief</button> <button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;,&#39;full&#39;)">Technical Report</button></td>';
       tb.appendChild(tr);
     });
   }
@@ -141,7 +141,6 @@ document.getElementById('lf').addEventListener('submit',async e=>{
 });
 document.getElementById('pp').addEventListener('click',()=>{pg--;loadRows()});
 document.getElementById('pn').addEventListener('click',()=>{pg++;loadRows()});
-window.addEventListener('message',e=>{if(e.data&&e.data.type==='vw')vw(e.data.id,e.data.rtype||'brief')});
 pw=sessionStorage.getItem('rcpw')||'';
 chkAuth().then(ok=>{if(ok)showDash()});
 </script>

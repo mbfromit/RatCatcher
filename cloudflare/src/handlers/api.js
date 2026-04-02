@@ -1,4 +1,4 @@
-import { json, checkAdminPassword, escapeHtml } from '../util.js'
+import { json, checkAdminPassword } from '../util.js'
 
 export async function handleSubmissions(request, env) {
   if (!checkAdminPassword(request, env)) return json({ error: 'Unauthorized' }, 401)
@@ -66,18 +66,7 @@ export async function handleReport(request, env, id, type) {
     const obj = await env.BUCKET.get(key)
     if (!obj) return notFound()
 
-    let html = await obj.text()
-
-    if (type === 'brief') {
-      const safeId = escapeHtml(id)
-      const banner = `<div style="background:#dc2626;color:#fff;padding:10px 20px;font-family:monospace;font-size:13px;text-align:center;border-bottom:1px solid #991b1b">` +
-        `Full Technical Report: <button onclick="window.opener&&window.opener.postMessage({type:'vw',id:'${safeId}',rtype:'full'},'*')" ` +
-        `style="background:none;border:1px solid rgba(255,255,255,0.6);color:#fff;cursor:pointer;font-family:monospace;font-size:13px;font-weight:bold;padding:2px 12px">` +
-        `View Full Report &rarr;</button></div>`
-      html = html.includes('<body')
-        ? html.replace(/(<body[^>]*>)/, '$1' + banner)
-        : banner + html
-    }
+    const html = await obj.text()
 
     return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
   } catch {

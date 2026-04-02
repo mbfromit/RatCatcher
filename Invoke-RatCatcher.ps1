@@ -21,7 +21,12 @@ param(
     [string[]]$Path         = $(if ($env:OS -eq 'Windows_NT') { @('C:\') } else { @('/') }),
     [string]$OutputPath     = $(if ($env:OS -eq 'Windows_NT') { 'C:\Logs' } else { '/tmp' }),
     [switch]$NoSubmit,
+    [switch]$NonInteractive,
+    [switch]$NoVerify,
+    [string]$SubmitPassword,
     [int]$Threads           = 4,
+    [string]$OllamaUrl      = 'http://192.168.1.203:11434',
+    [string]$OllamaModel    = 'qwen3:14b',
     # Test-artifact overrides — point at synthetic data without touching real npm cache or firewall log
     [string]$TestCacheDir,
     [string]$TestFirewallLogPath
@@ -44,6 +49,7 @@ $pvt = Join-Path $PSScriptRoot 'Private'
 . (Join-Path $pvt 'New-ScanLogHtml.ps1')
 . (Join-Path $pvt 'Send-ScanReport.ps1')
 . (Join-Path $pvt 'Submit-ScanToApi.ps1')
+. (Join-Path $pvt 'Invoke-FindingVerification.ps1')
 
 # Load logo for HTML reports (resize to ~600px to keep embedded size reasonable)
 $logoBase64 = ''
@@ -88,20 +94,28 @@ foreach ($p in $resolvedPaths) { Write-Host "    $p" }
 Write-Host ''
 Write-Host '  Skipped (OS/system):' ($excludedTopLevel -join ', ')
 Write-Host ''
-$confirm = Read-Host '  Press ENTER to start the scan, or type Q to quit'
-if ($confirm -match '^[Qq]') { Write-Host 'Scan cancelled.'; exit 0 }
+if ($NonInteractive) {
+    Write-Host '  [NonInteractive] Skipping confirmation — starting scan automatically.'
+} else {
+    $confirm = Read-Host '  Press ENTER to start the scan, or type Q to quit'
+    if ($confirm -match '^[Qq]') { Write-Host 'Scan cancelled.'; exit 0 }
+}
 Write-Host ''
 
 # ── Submission password ───────────────────────────────────────────────────────
 if (-not $NoSubmit) {
-    Write-Host '  A submission password is required to run the scan.'
-    Write-Host '  Contact your manager or the DevOps team if you do not have one.'
-    Write-Host ''
-    $submitPassword = Read-Host '  Enter RatCatcher submission password'
-    if ([string]::IsNullOrWhiteSpace($submitPassword)) {
+    if ($SubmitPassword) {
+        $submitPassword = $SubmitPassword
+    } else {
+        Write-Host '  A submission password is required to run the scan.'
+        Write-Host '  Contact your manager or the DevOps team if you do not have one.'
         Write-Host ''
-        Write-Host '  No password entered — scan cancelled.'
-        exit 0
+        $submitPassword = Read-Host '  Enter RatCatcher submission password'
+        if ([string]::IsNullOrWhiteSpace($submitPassword)) {
+            Write-Host ''
+            Write-Host '  No password entered — scan cancelled.'
+            exit 0
+        }
     }
     Write-Host ''
 }
@@ -127,7 +141,7 @@ Write-Log "Scanning paths: $($resolvedPaths -join ', ')"
 
 # ── Check 1: Discover Node.js projects ────────────────────────────────────────
 Write-Log "[1/10] Discovering Node.js projects..."
-$projects = Get-NodeProjects -Path $resolvedPaths
+$projects = @(Get-NodeProjects -Path $resolvedPaths)
 Write-Log "Found $($projects.Count) project(s)"
 
 # ── Checks 2 & 3: Lockfile analysis + artifact detection (parallel on PS7) ───
@@ -149,6 +163,9 @@ if ($PSVersionTable.PSVersion.Major -ge 7 -and $projects.Count -gt 0) {
     Write-Log "[3/10] Detecting project-level forensic artifacts..."
     $rawArtifacts    = @($projects | ForEach-Object { Find-ForensicArtifacts -ProjectPath $_.ProjectPath })
 }
+# Ensure these are always arrays even if checks 2/3 were skipped (no projects found)
+if (-not $lockfileResults) { $lockfileResults = @() }
+if (-not $rawArtifacts)    { $rawArtifacts    = @() }
 $artifacts = @($rawArtifacts | Where-Object { $_ })
 
 # ── Check 4: npm cache ────────────────────────────────────────────────────────
@@ -172,6 +189,47 @@ Write-Log "[8/10] Checking network evidence (DNS cache, active connections, fire
 $neParams = @{}
 if ($TestFirewallLogPath) { $neParams['FirewallLogPath'] = $TestFirewallLogPath }
 $networkEvidence = @(Get-NetworkEvidence @neParams)
+
+# ── AI Verification: annotate findings via local LLM ─────────────────────────
+if (-not $NoVerify) {
+    Write-Log "[AI] Verifying findings against local LLM ($OllamaModel)..."
+    $verifyParams = @{ OllamaUrl = $OllamaUrl; Model = $OllamaModel }
+
+    $categoriesToVerify = @(
+        @{ Name = 'Forensic Artifacts';    Ref = 'artifacts' }
+        @{ Name = 'npm Cache';             Ref = 'cacheFindings' }
+        @{ Name = 'Dropped Payloads';      Ref = 'droppedPayloads' }
+        @{ Name = 'Persistence Artifacts'; Ref = 'persistenceArtifacts' }
+        @{ Name = 'XOR-Encoded C2';        Ref = 'xorFindings' }
+        @{ Name = 'Network Evidence';      Ref = 'networkEvidence' }
+    )
+
+    $totalVerified = 0
+
+    foreach ($cat in $categoriesToVerify) {
+        $findings = Get-Variable -Name $cat.Ref -ValueOnly
+        if (-not $findings -or $findings.Count -eq 0) { continue }
+        Write-Log "[AI] Verifying $($findings.Count) finding(s) in '$($cat.Name)'..."
+
+        $verifiedFindings = Invoke-FindingVerification `
+            -Findings $findings `
+            -FindingCategory $cat.Name `
+            @verifyParams
+
+        $totalVerified += $verifiedFindings.Count
+
+        foreach ($f in $verifiedFindings) {
+            Write-Log "[AI] $($f.AiVerdict): $($f.Type) — $($f.AiReason)" 'INFO'
+        }
+
+        # Write annotated findings back (all kept, just annotated)
+        Set-Variable -Name $cat.Ref -Value $verifiedFindings
+    }
+
+    Write-Log "[AI] Verification complete: $totalVerified finding(s) annotated with AI verdicts"
+} else {
+    Write-Log "[AI] LLM verification skipped (-NoVerify)"
+}
 
 # ── Check 9: Generate report ──────────────────────────────────────────────────
 $duration = (Get-Date) - $startTime

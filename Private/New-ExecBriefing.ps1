@@ -27,15 +27,25 @@ function New-ExecBriefing {
     # ── Per-check pass/fail ────────────────────────────────────────────────────
     $vulnLockfiles = @($LockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto })
 
+    # Helpers: count AI verdicts in a category
+    function Get-AiVerifiedCount($findings) {
+        if (-not $findings) { return 0 }
+        @($findings | Where-Object { $_.AiVerdict -in @('Confirmed','Likely') }).Count
+    }
+    function Get-AiClearedCount($findings) {
+        if (-not $findings) { return 0 }
+        @($findings | Where-Object { $_.AiVerdict -in @('FalsePositive','Unlikely') }).Count
+    }
+
     $checks = [ordered]@{
-        '1' = @{ Name='Project Discovery';         What='Node.js projects on disk';                        Examined="$ProjectCount found";         Findings=$null;                      Pass=$true }
-        '2' = @{ Name='Dependency Lockfiles';      What='Known-malicious axios versions';                  Examined="$($LockfileResults.Count) lockfiles"; Findings=$vulnLockfiles.Count;  Pass=($vulnLockfiles.Count -eq 0) }
-        '3' = @{ Name='Malicious Package Files';   What='Backdoor package dir / dropper hash';             Examined="$ProjectCount project dirs";  Findings=$Artifacts.Count;           Pass=($Artifacts.Count -eq 0) }
-        '4' = @{ Name='npm Package Cache';         What='Poisoned packages in npm cache';                  Examined='1 cache';                     Findings=$CacheFindings.Count;       Pass=($CacheFindings.Count -eq 0) }
-        '5' = @{ Name='Dropped Malware Payloads';  What='Executables/scripts in temp after attack';        Examined='Temp and appdata';            Findings=$DroppedPayloads.Count;     Pass=($DroppedPayloads.Count -eq 0) }
-        '6' = @{ Name='Persistence Mechanisms';    What='Scheduled tasks, Run keys, startup';              Examined='3 persistence sources';       Findings=$PersistenceArtifacts.Count; Pass=($PersistenceArtifacts.Count -eq 0) }
-        '7' = @{ Name='Obfuscated Attack Signals'; What='XOR-encoded C2 callbacks (OrDeR_7077)';           Examined='Temp and appdata files';      Findings=$XorFindings.Count;         Pass=($XorFindings.Count -eq 0) }
-        '8' = @{ Name='Network Contact Evidence';  What='DNS cache, active TCP, firewall log';             Examined='3 network sources';           Findings=$NetworkEvidence.Count;     Pass=($NetworkEvidence.Count -eq 0) }
+        '1' = @{ Name='Project Discovery';         What='Node.js projects on disk';                        Examined="$ProjectCount found";         Findings=$null;                      Pass=$true;  AiVerified=0; AiCleared=0 }
+        '2' = @{ Name='Dependency Lockfiles';      What='Known-malicious axios versions';                  Examined="$($LockfileResults.Count) lockfiles"; Findings=$vulnLockfiles.Count;  Pass=($vulnLockfiles.Count -eq 0); AiVerified=0; AiCleared=0 }
+        '3' = @{ Name='Malicious Package Files';   What='Backdoor package dir / dropper hash';             Examined="$ProjectCount project dirs";  Findings=$Artifacts.Count;           Pass=($Artifacts.Count -eq 0);           AiVerified=(Get-AiVerifiedCount $Artifacts);            AiCleared=(Get-AiClearedCount $Artifacts) }
+        '4' = @{ Name='npm Package Cache';         What='Poisoned packages in npm cache';                  Examined='1 cache';                     Findings=$CacheFindings.Count;       Pass=($CacheFindings.Count -eq 0);       AiVerified=(Get-AiVerifiedCount $CacheFindings);        AiCleared=(Get-AiClearedCount $CacheFindings) }
+        '5' = @{ Name='Dropped Malware Payloads';  What='Executables/scripts in temp after attack';        Examined='Temp and appdata';            Findings=$DroppedPayloads.Count;     Pass=($DroppedPayloads.Count -eq 0);     AiVerified=(Get-AiVerifiedCount $DroppedPayloads);      AiCleared=(Get-AiClearedCount $DroppedPayloads) }
+        '6' = @{ Name='Persistence Mechanisms';    What='Scheduled tasks, Run keys, startup';              Examined='3 persistence sources';       Findings=$PersistenceArtifacts.Count; Pass=($PersistenceArtifacts.Count -eq 0); AiVerified=(Get-AiVerifiedCount $PersistenceArtifacts); AiCleared=(Get-AiClearedCount $PersistenceArtifacts) }
+        '7' = @{ Name='Obfuscated Attack Signals'; What='XOR-encoded C2 callbacks (OrDeR_7077)';           Examined='Temp and appdata files';      Findings=$XorFindings.Count;         Pass=($XorFindings.Count -eq 0);         AiVerified=(Get-AiVerifiedCount $XorFindings);          AiCleared=(Get-AiClearedCount $XorFindings) }
+        '8' = @{ Name='Network Contact Evidence';  What='DNS cache, active TCP, firewall log';             Examined='3 network sources';           Findings=$NetworkEvidence.Count;     Pass=($NetworkEvidence.Count -eq 0);     AiVerified=(Get-AiVerifiedCount $NetworkEvidence);      AiCleared=(Get-AiClearedCount $NetworkEvidence) }
     }
 
     $failedChecks  = @($checks.GetEnumerator() | Where-Object { -not $_.Value.Pass })
@@ -57,6 +67,10 @@ function New-ExecBriefing {
         $c       = $_.Value
         $status  = if ($c.Pass) { '<span class="badge b-pass">PASS</span>' } else { '<span class="badge b-fail">FAIL</span>' }
         $findStr = if ($null -eq $c.Findings) { '&mdash;' } elseif ($c.Findings -eq 0) { '0 hits' } else { "$($c.Findings) found" }
+        $aiNotes = @()
+        if ($c.AiVerified -gt 0) { $aiNotes += "<span style=`"color:var(--fail)`">$($c.AiVerified) AI-verified</span>" }
+        if ($c.AiCleared  -gt 0) { $aiNotes += "<span style=`"color:var(--pass)`">$($c.AiCleared) AI-cleared</span>" }
+        if ($aiNotes.Count -gt 0) { $findStr += "<br><span class=`"ai-summary`">($($aiNotes -join ', '))</span>" }
         $nameCol = if (-not $c.Pass) { "<span style=`"color:var(--fail);`">$(Esc $c.Name)</span>" } else { "<span class=`"td-name`">$(Esc $c.Name)</span>" }
         "<tr><td class=`"td-num`">$($_.Key)</td><td>$nameCol</td><td class=`"td-what`">$(Esc $c.What)</td><td class=`"td-examined`">$(Esc $c.Examined)</td><td class=`"td-findings`">$findStr</td><td>$status</td></tr>"
     }) -join ''
@@ -181,6 +195,7 @@ strong{color:var(--text-bright)}p{margin-bottom:6px}
 .meta-k{color:var(--text-muted)}
 .meta-v{color:var(--text-bright);font-family:'Consolas',monospace;font-size:12px;word-break:break-all}
 .rc-footer{text-align:center;padding:24px 32px;color:var(--text-muted);font-size:11px;border-top:1px solid var(--border);margin-top:32px;font-family:'Consolas',monospace;letter-spacing:.5px}
+.ai-summary{font-size:12px;color:var(--text-muted);font-style:italic;margin-top:4px}
 '@
 
     $html = @"

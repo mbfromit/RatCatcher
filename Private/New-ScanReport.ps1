@@ -35,15 +35,43 @@ function New-ScanReport {
         "<span class=`"badge $cls`">$(Esc $sev)</span>"
     }
 
+    function AiVerdictHtml($f) {
+        if (-not $f.AiVerdict) { return '' }
+        $cls = switch ($f.AiVerdict) {
+            'Confirmed'     { 'ai-confirmed' }
+            'Likely'        { 'ai-likely' }
+            'Unlikely'      { 'ai-unlikely' }
+            'FalsePositive' { 'ai-fp' }
+            default         { 'ai-unknown' }
+        }
+        $label = switch ($f.AiVerdict) {
+            'Confirmed'     { 'VERIFIED BY AI — CONFIRMED THREAT' }
+            'Likely'        { 'VERIFIED BY AI — LIKELY THREAT' }
+            'Unlikely'      { 'AI REVIEWED — UNLIKELY' }
+            'FalsePositive' { 'AI REVIEWED — FALSE POSITIVE' }
+            default         { 'AI REVIEW — INCONCLUSIVE' }
+        }
+        $reason = if ($f.AiReason) { "<div class=`"f-row`"><span class=`"f-k`">AI NOTE</span><span class=`"f-v ai-reason`">$(Esc $f.AiReason)</span></div>" } else { '' }
+        "<div class=`"f-row`"><span class=`"f-k`">AI VERDICT</span><span class=`"f-v`"><span class=`"badge $cls`">$label</span></span></div>$reason"
+    }
+
     function FindingCard($f, [string]$extra = '') {
         $cls  = switch ($f.Severity) { 'Critical' {'f-critical'} 'High' {'f-high'} 'Medium' {'f-medium'} default {'f-low'} }
+        $aiCls = switch ($f.AiVerdict) {
+            'FalsePositive' { ' ai-dimmed' }
+            'Unlikely'      { ' ai-dimmed' }
+            'Confirmed'     { ' ai-verified' }
+            'Likely'        { ' ai-verified' }
+            default         { '' }
+        }
         $hash = if ($f.Hash) { "<div class=`"f-row`"><span class=`"f-k`">SHA256</span><span class=`"f-v hash`">$(Esc $f.Hash)</span></div>" } else { '' }
+        $aiRow = AiVerdictHtml $f
         @"
-<div class="finding $cls">
+<div class="finding $cls$aiCls">
   <div class="f-head">$(SevBadge $f.Severity)<span class="f-type">$(Esc $f.Type)</span></div>
   <div class="f-meta">
     <div class="f-row"><span class="f-k">PATH</span><span class="f-v">$(Esc $f.Path)</span></div>
-    $hash$extra
+    $hash$extra$aiRow
     <div class="f-row"><span class="f-k">DETAIL</span><span class="f-v">$(Esc $f.Description)</span></div>
   </div>
 </div>
@@ -104,13 +132,16 @@ function New-ScanReport {
         ($PersistenceArtifacts | ForEach-Object {
             $pa = $_
             $cls = switch ($pa.Severity) { 'Critical' {'f-critical'} 'High' {'f-high'} 'Medium' {'f-medium'} default {'f-low'} }
+            $aiCls = switch ($pa.AiVerdict) { 'FalsePositive' {' ai-dimmed'} 'Unlikely' {' ai-dimmed'} 'Confirmed' {' ai-verified'} 'Likely' {' ai-verified'} default {''} }
+            $aiRow = AiVerdictHtml $pa
             @"
-<div class="finding $cls">
+<div class="finding $cls$aiCls">
   <div class="f-head">$(SevBadge $pa.Severity)<span class="f-type">$(Esc $pa.Type)</span></div>
   <div class="f-meta">
     <div class="f-row"><span class="f-k">LOCATION</span><span class="f-v">$(Esc $pa.Location)</span></div>
     <div class="f-row"><span class="f-k">NAME</span><span class="f-v">$(Esc $pa.Name)</span></div>
     <div class="f-row"><span class="f-k">VALUE</span><span class="f-v">$(Esc $pa.Value)</span></div>
+    $aiRow
     <div class="f-row"><span class="f-k">DETAIL</span><span class="f-v">$(Esc $pa.Description)</span></div>
   </div>
 </div>
@@ -129,11 +160,14 @@ function New-ScanReport {
         ($NetworkEvidence | ForEach-Object {
             $ne = $_
             $cls = switch ($ne.Severity) { 'Critical' {'f-critical'} 'High' {'f-high'} 'Medium' {'f-medium'} default {'f-low'} }
+            $aiCls = switch ($ne.AiVerdict) { 'FalsePositive' {' ai-dimmed'} 'Unlikely' {' ai-dimmed'} 'Confirmed' {' ai-verified'} 'Likely' {' ai-verified'} default {''} }
+            $aiRow = AiVerdictHtml $ne
             @"
-<div class="finding $cls">
+<div class="finding $cls$aiCls">
   <div class="f-head">$(SevBadge $ne.Severity)<span class="f-type">$(Esc $ne.Type)</span></div>
   <div class="f-meta">
     <div class="f-row"><span class="f-k">DETAIL</span><span class="f-v">$(Esc $ne.Detail)</span></div>
+    $aiRow
     <div class="f-row"><span class="f-k">SUMMARY</span><span class="f-v">$(Esc $ne.Description)</span></div>
   </div>
 </div>
@@ -283,6 +317,14 @@ strong{color:var(--text-bright)}
 .meta-k{color:var(--text-muted)}
 .meta-v{color:var(--text-bright);font-family:'Consolas',monospace;font-size:12px;word-break:break-all}
 .rc-footer{text-align:center;padding:24px 32px;color:var(--text-muted);font-size:11px;border-top:1px solid var(--border);margin-top:32px;font-family:'Consolas',monospace;letter-spacing:.5px}
+.ai-confirmed{background:rgba(248,81,73,.15);color:var(--fail);border:1px solid rgba(248,81,73,.3)}
+.ai-likely{background:rgba(255,136,0,.15);color:var(--high);border:1px solid rgba(255,136,0,.3)}
+.ai-unlikely{background:rgba(88,166,255,.08);color:var(--accent2);border:1px solid rgba(88,166,255,.2)}
+.ai-fp{background:rgba(63,185,80,.15);color:var(--pass);border:1px solid rgba(63,185,80,.3)}
+.ai-unknown{background:rgba(227,179,65,.12);color:var(--warn);border:1px solid rgba(227,179,65,.3)}
+.ai-reason{color:var(--text-muted);font-style:italic;font-family:'Segoe UI',system-ui,sans-serif;font-size:12px}
+.ai-dimmed{opacity:.55;border-style:dashed}
+.ai-verified{border-left-width:4px;box-shadow:0 0 12px rgba(248,81,73,.15)}
 '@
 
     $html = @"

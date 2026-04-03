@@ -34,6 +34,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
+$RatCatcherVersion = '1.1.0'
 
 $pvt = Join-Path $PSScriptRoot 'Private'
 . (Join-Path $pvt 'Get-NodeProjects.ps1')
@@ -85,7 +86,7 @@ foreach ($root in $Path) {
 # ── Confirmation prompt ────────────────────────────────────────────────────────
 Write-Host ''
 Write-Host '================================================================'
-Write-Host '  RATCATCHER'
+Write-Host "  RATCATCHER v$RatCatcherVersion"
 Write-Host '================================================================'
 Write-Host ''
 Write-Host '  The following folders will be scanned on this machine:'

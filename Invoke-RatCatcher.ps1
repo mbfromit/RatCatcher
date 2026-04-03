@@ -26,7 +26,7 @@ param(
     [string]$SubmitPassword,
     [int]$Threads           = 4,
     [string]$OllamaUrl      = 'http://192.168.1.203:11434',
-    [string]$OllamaModel    = 'qwen3:14b',
+    [string]$OllamaModel    = 'gemma4:26b',
     # Test-artifact overrides — point at synthetic data without touching real npm cache or firewall log
     [string]$TestCacheDir,
     [string]$TestFirewallLogPath

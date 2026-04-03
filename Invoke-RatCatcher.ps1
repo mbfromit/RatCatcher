@@ -274,7 +274,8 @@ $reportPath = New-ScanReport `
     -NetworkEvidence      $networkEvidence `
     -OutputPath           $OutputPath `
     -ScanMetadata         $metadata `
-    -LogoBase64           $logoBase64
+    -LogoBase64           $logoBase64 `
+    -AiVerdict            $aiVerdict
 
 Write-Log "Technical report: $reportPath"
 
@@ -299,7 +300,8 @@ $briefingPath = New-ExecBriefing `
     -LogHtmlPath          $logHtmlPath `
     -OutputPath           $OutputPath `
     -ScanMetadata         $metadata `
-    -LogoBase64           $logoBase64
+    -LogoBase64           $logoBase64 `
+    -AiVerdict            $aiVerdict
 
 Write-Log "Executive briefing: $briefingPath"
 

@@ -11,7 +11,8 @@ function New-ScanReport {
         [PSCustomObject[]]$NetworkEvidence      = @(),
         [Parameter(Mandatory)][string]$OutputPath,
         [Parameter(Mandatory)][hashtable]$ScanMetadata,
-        [string]$LogoBase64 = ''
+        [string]$LogoBase64  = '',
+        [string]$AiVerdict   = ''
     )
 
     $LockfileResults      = @($LockfileResults      | Where-Object { $_ })
@@ -26,6 +27,19 @@ function New-ScanReport {
     $allFindings   = $Artifacts + $CacheFindings + $DroppedPayloads + $PersistenceArtifacts + $XorFindings + $NetworkEvidence
     $criticalCount = @($allFindings | Where-Object { $_.Severity -eq 'Critical' }).Count
     $overallStatus = if ($vulnProjects.Count -gt 0 -or $allFindings.Count -gt 0) { 'COMPROMISED' } else { 'CLEAN' }
+
+    $displayVerdict = switch ($AiVerdict) {
+        'AI_COMPROMISE'     { 'AI VERIFIED COMPROMISE' }
+        'AI_FALSE_POSITIVE' { 'AI VERIFIED FALSE POSITIVE' }
+        'AI_CLEAN'          { 'AI VERIFIED CLEAN' }
+        default             { $overallStatus }
+    }
+    $verdictClass = switch ($AiVerdict) {
+        'AI_COMPROMISE'     { 'compromised' }
+        'AI_FALSE_POSITIVE' { 'ai-fp' }
+        'AI_CLEAN'          { 'clean' }
+        default             { if ($overallStatus -eq 'COMPROMISED') { 'compromised' } else { 'clean' } }
+    }
 
     # ── Helpers ────────────────────────────────────────────────────────────────
     function Esc([string]$s) { if (-not $s) { return '' }; $s.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;').Replace('"','&quot;') }
@@ -190,7 +204,13 @@ function New-ScanReport {
         $label   = if ($present) { '<span class="badge b-high">PRESENT</span>' } else { '<span class="badge b-info">NOT FOUND</span>' }
         "<div class=`"f-row`"><span class=`"f-k`">$label</span><span class=`"f-v`">$(Esc $_)</span></div>"
     }
-    $credNote = if ($overallStatus -eq 'COMPROMISED') { '<p style="color:var(--fail);margin-bottom:12px;font-weight:600;">&#9888; ROTATE ALL PRESENT CREDENTIALS IMMEDIATELY</p>' } else { '<p style="color:var(--text-muted);margin-bottom:12px;">No compromise detected — verify these are not exposed as a precaution.</p>' }
+    $credNote = if ($AiVerdict -eq 'AI_FALSE_POSITIVE' -or $AiVerdict -eq 'AI_CLEAN') {
+        '<p style="color:var(--pass);margin-bottom:12px;">AI analysis cleared all findings — credential rotation is not required as a result of this scan.</p>'
+    } elseif ($overallStatus -eq 'COMPROMISED') {
+        '<p style="color:var(--fail);margin-bottom:12px;font-weight:600;">&#9888; ROTATE ALL PRESENT CREDENTIALS IMMEDIATELY</p>'
+    } else {
+        '<p style="color:var(--text-muted);margin-bottom:12px;">No compromise detected — verify these are not exposed as a precaution.</p>'
+    }
     $credHtml = @"
 $credNote
 <div class="f-meta">$($credRows -join '')</div>
@@ -247,10 +267,9 @@ Consider full OS re-image if an active C2 connection was found.</div></div>
 
     # ── Compose page ───────────────────────────────────────────────────────────
     $logoImg      = if ($LogoBase64) { "<img src=`"data:image/png;base64,$LogoBase64`" class=`"rc-logo`" alt=`"RatCatcher`">" } else { '' }
-    $verdictClass = if ($overallStatus -eq 'COMPROMISED') { 'compromised' } else { 'clean' }
     $s1class      = if ($vulnProjects.Count -gt 0) { ' s-danger' } else { '' }
     $s2class      = if ($criticalCount -gt 0)      { ' s-danger' } else { '' }
-    $s3class      = if ($overallStatus -eq 'COMPROMISED') { ' s-danger' } else { '' }
+    $s3class      = if ($verdictClass -eq 'compromised') { ' s-danger' } elseif ($verdictClass -eq 'ai-fp') { ' s-warn' } else { '' }
 
     $css = @'
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -326,6 +345,9 @@ strong{color:var(--text-bright)}
 .ai-reason{color:var(--text-muted);font-style:italic;font-family:'Segoe UI',system-ui,sans-serif;font-size:12px}
 .ai-dimmed{opacity:.55;border-style:dashed}
 .ai-verified{border-left-width:4px;box-shadow:0 0 12px rgba(248,81,73,.15)}
+.rc-hv.ai-fp{background:rgba(232,168,56,.15);color:#e8a838;border:1px solid rgba(232,168,56,.3)}
+.rc-stat.s-warn::before{background:#e8a838}
+.rc-stat.s-warn .rc-stat-val{color:#e8a838}
 '@
 
     $html = @"
@@ -344,7 +366,7 @@ strong{color:var(--text-bright)}
     <div class="rc-title">RATCATCHER</div>
     <div class="rc-subtitle">FORENSIC REPORT &nbsp;&#47;&#47;&nbsp; $(Esc $ScanMetadata.Hostname) &nbsp;&#47;&#47;&nbsp; $(Esc $ScanMetadata.Timestamp)</div>
   </div>
-  <div class="rc-hv $verdictClass">$overallStatus</div>
+  <div class="rc-hv $verdictClass">$displayVerdict</div>
 </div>
 
 <div class="rc-main">
@@ -363,7 +385,7 @@ strong{color:var(--text-bright)}
       <div class="rc-stat-lbl">Critical Findings</div>
     </div>
     <div class="rc-stat$s3class">
-      <div class="rc-stat-val" style="font-size:20px;padding-top:8px;">$overallStatus</div>
+      <div class="rc-stat-val" style="font-size:18px;padding-top:8px;">$displayVerdict</div>
       <div class="rc-stat-lbl">Overall Status</div>
     </div>
   </div>

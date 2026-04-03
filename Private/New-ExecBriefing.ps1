@@ -13,7 +13,8 @@ function New-ExecBriefing {
         [string]$LogHtmlPath                            = '',
         [Parameter(Mandatory)][string]$OutputPath,
         [Parameter(Mandatory)][hashtable]$ScanMetadata,
-        [string]$LogoBase64                             = ''
+        [string]$LogoBase64                             = '',
+        [string]$AiVerdict                              = ''
     )
 
     $LockfileResults      = @($LockfileResults      | Where-Object { $_ })
@@ -50,8 +51,19 @@ function New-ExecBriefing {
 
     $failedChecks  = @($checks.GetEnumerator() | Where-Object { -not $_.Value.Pass })
     $overallClean  = $failedChecks.Count -eq 0
-    $verdictLabel  = if ($overallClean) { 'CLEAN' } else { 'COMPROMISED' }
-    $verdictClass  = if ($overallClean) { 'clean' } else { 'compromised' }
+
+    $verdictLabel = switch ($AiVerdict) {
+        'AI_COMPROMISE'     { 'AI VERIFIED COMPROMISE' }
+        'AI_FALSE_POSITIVE' { 'AI VERIFIED FALSE POSITIVE' }
+        'AI_CLEAN'          { 'AI VERIFIED CLEAN' }
+        default             { if ($overallClean) { 'CLEAN' } else { 'COMPROMISED' } }
+    }
+    $verdictClass = switch ($AiVerdict) {
+        'AI_COMPROMISE'     { 'compromised' }
+        'AI_FALSE_POSITIVE' { 'ai-fp' }
+        'AI_CLEAN'          { 'clean' }
+        default             { if ($overallClean) { 'clean' } else { 'compromised' } }
+    }
 
     # ── Hash the technical report ──────────────────────────────────────────────
     $reportHash = 'unavailable'
@@ -76,7 +88,14 @@ function New-ExecBriefing {
     }) -join ''
 
     # ── What this means ────────────────────────────────────────────────────────
-    if ($overallClean) {
+    if ($AiVerdict -eq 'AI_FALSE_POSITIVE') {
+        $failList = ($failedChecks | ForEach-Object { "<li>Check $($_.Key) &mdash; $($_.Value.Name)</li>" }) -join ''
+        $meaningHtml = @"
+<p>The scanner flagged findings in <strong>$($failedChecks.Count) of 8 checks</strong>, but AI analysis reviewed each finding against the Axios attack profile and determined all are false positives unrelated to the attack.</p>
+<ul style="margin:12px 0 0 20px;color:var(--warn);">$failList</ul>
+<p style="margin-top:12px;color:var(--text-muted);">This machine was not compromised by the Axios supply chain attack. The flagged items are normal system activity.</p>
+"@
+    } elseif ($overallClean) {
         $meaningHtml = @'
 <p>No evidence of compromise was detected across all 8 checks. This machine was not affected by the Axios supply chain attack.</p>
 <p style="margin-top:10px;">This developer may continue work as normal. No remediation is required.</p>
@@ -93,7 +112,7 @@ $c2warning
     }
 
     # ── Required actions ───────────────────────────────────────────────────────
-    if ($overallClean) {
+    if ($AiVerdict -eq 'AI_FALSE_POSITIVE' -or $overallClean) {
         $actionsHtml = @'
 <p style="color:var(--pass);font-size:15px;font-weight:600;">&#10003; No action required.</p>
 <p style="margin-top:10px;color:var(--text-muted);">This machine shows no evidence of the Axios supply chain attack. No remediation, credential rotation, or cleanup is necessary as a result of this scan.</p>
@@ -134,11 +153,16 @@ $c2warning
 
     # ── Logo & verdict icon ─────────────────────────────────────────────────────
     $logoImg     = if ($LogoBase64) { "<img src=`"data:image/png;base64,$LogoBase64`" class=`"rc-logo`" alt=`"RatCatcher`">" } else { '' }
-    $verdictIcon = if ($overallClean) { '&#10003;' } else { '&#9888;' }
-    $verdictDesc = if ($overallClean) {
-        'No evidence of the Axios supply chain attack was found on this machine.'
-    } else {
-        'Evidence of the Axios supply chain attack was detected. Immediate action required.'
+    $verdictIcon = switch ($verdictClass) {
+        'compromised' { '&#9888;' }
+        'ai-fp'       { '&#126;' }
+        default       { '&#10003;' }
+    }
+    $verdictDesc = switch ($AiVerdict) {
+        'AI_COMPROMISE'     { 'AI analysis confirmed findings match the Axios supply chain attack. Immediate action required.' }
+        'AI_FALSE_POSITIVE' { 'AI analysis reviewed all findings and determined they are false positives. No compromise detected.' }
+        'AI_CLEAN'          { 'AI analysis confirmed no evidence of the Axios supply chain attack on this machine.' }
+        default             { if ($overallClean) { 'No evidence of the Axios supply chain attack was found on this machine.' } else { 'Evidence of the Axios supply chain attack was detected. Immediate action required.' } }
     }
 
     $css = @'
@@ -196,6 +220,9 @@ strong{color:var(--text-bright)}p{margin-bottom:6px}
 .meta-v{color:var(--text-bright);font-family:'Consolas',monospace;font-size:12px;word-break:break-all}
 .rc-footer{text-align:center;padding:24px 32px;color:var(--text-muted);font-size:11px;border-top:1px solid var(--border);margin-top:32px;font-family:'Consolas',monospace;letter-spacing:.5px}
 .ai-summary{font-size:12px;color:var(--text-muted);font-style:italic;margin-top:4px}
+.rc-hv.ai-fp{background:rgba(232,168,56,.15);color:#e8a838;border:1px solid rgba(232,168,56,.3)}
+.verdict-icon.ai-fp{color:#e8a838}
+.verdict-label.ai-fp{color:#e8a838}
 '@
 
     $html = @"

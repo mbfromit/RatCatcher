@@ -133,7 +133,7 @@ async function loadStats(){
     document.getElementById('s-comp').textContent=(d.compromised??0).toLocaleString();
     document.getElementById('s-pos').textContent=(d.positive??0).toLocaleString();
     document.getElementById('s-reviewed').textContent=(d.reviewed??0).toLocaleString();
-    document.getElementById('s-notrev').textContent=(d.compromised??0).toLocaleString();
+    document.getElementById('s-notrev').textContent=(d.not_reviewed??0).toLocaleString();
   }catch(e){console.error('loadStats',e)}
 }
 async function loadRows(){

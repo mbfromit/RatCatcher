@@ -83,7 +83,12 @@ export async function handleStats(request, env) {
               AND COALESCE(tc.threat_count, 0) = 0
               AND (s.findings_count IS NULL OR s.findings_count = 0
                    OR COALESCE(ac.ack_count, 0) < s.findings_count)
-             THEN 1 ELSE 0 END) AS compromised
+             THEN 1 ELSE 0 END) AS compromised,
+        SUM(CASE WHEN verdict = 'COMPROMISED'
+              AND COALESCE(tc.threat_count, 0) = 0
+              AND (s.findings_count IS NULL OR s.findings_count = 0
+                   OR COALESCE(ac.ack_count, 0) < s.findings_count)
+             THEN 1 ELSE 0 END) AS not_reviewed
       FROM submissions s
       LEFT JOIN (
         SELECT submission_id, COUNT(*) AS ack_count FROM finding_acknowledgements GROUP BY submission_id
@@ -98,7 +103,8 @@ export async function handleStats(request, env) {
       clean:       row?.clean       ?? 0,
       compromised: row?.compromised ?? 0,
       reviewed:    row?.reviewed    ?? 0,
-      positive:    row?.positive    ?? 0
+      positive:    row?.positive    ?? 0,
+      not_reviewed: row?.not_reviewed ?? 0
     })
   } catch {
     return json({ error: 'Database error' }, 500)

@@ -32,6 +32,21 @@ export async function handleGetAcks(request, env, submissionId) {
   }
 }
 
+export async function handleDeleteAck(request, env, submissionId, findingHash) {
+  if (!checkAdminPassword(request, env)) return json({ error: 'Unauthorized' }, 401)
+
+  try {
+    const result = await env.DB.prepare(
+      'DELETE FROM finding_acknowledgements WHERE submission_id = ? AND finding_hash = ?'
+    ).bind(submissionId, findingHash).run()
+
+    if (!result.meta?.changes) return json({ error: 'Not found' }, 404)
+    return json({ ok: true, deleted: findingHash })
+  } catch {
+    return json({ error: 'Database error' }, 500)
+  }
+}
+
 export async function handlePostAck(request, env, submissionId) {
   if (!checkAdminPassword(request, env)) return json({ error: 'Unauthorized' }, 401)
 

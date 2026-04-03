@@ -172,7 +172,7 @@ function _rcViewFull(){
     if (type === 'full') {
       // Count findings and persist if not yet stored
       if (!row.findings_count) {
-        const matches = html.match(/<div class="finding[" ]/g)
+        const matches = html.match(/<div class=["']finding["' ]/g)
         const count = matches ? matches.length : 0
         if (count > 0) {
           try {
@@ -220,6 +220,11 @@ function _rcViewFull(){
 .rc-modal.threat .rc-modal-save{background:#da3633;border-color:#f85149}
 .rc-modal.threat .rc-modal-save:hover{background:#f85149}
 .rc-modal.threat textarea:focus{border-color:#f85149}
+.rc-ack-actions{display:flex;gap:10px;margin-top:5px}
+.rc-ack-edit{background:none;border:none;padding:0;cursor:pointer;font-family:'Consolas',monospace;font-size:10px;letter-spacing:1px;color:#58a6ff}
+.rc-ack-edit:hover{text-decoration:underline}
+.rc-ack-undo{background:none;border:none;padding:0;cursor:pointer;font-family:'Consolas',monospace;font-size:10px;letter-spacing:1px;color:#484f58}
+.rc-ack-undo:hover{color:#f85149;text-decoration:underline}
 </style>`
 
       // Inject ack script — use absolute URL so it works from blob: origins
@@ -249,21 +254,23 @@ function _rcViewFull(){
   overlay.onclick=function(e){if(e.target===overlay)overlay.classList.remove('open')};
   document.getElementById('rc-m-save').onclick=saveAck;
 
-  function openModal(hash,el,pathText,isThreat){
+  function openModal(hash,el,pathText,isThreat,prefill){
     currentHash=hash;currentEl=el;currentThreat=!!isThreat;
     var dlg=document.getElementById('rc-m-dialog');
     dlg.className=isThreat?'rc-modal threat':'rc-modal';
-    document.getElementById('rc-m-title').textContent=isThreat?'CONFIRM THREAT':'ACKNOWLEDGE FINDING';
+    var isEdit=!!prefill;
+    document.getElementById('rc-m-title').textContent=isEdit?(isThreat?'EDIT \u2014 CONFIRM THREAT':'EDIT ACKNOWLEDGEMENT'):(isThreat?'CONFIRM THREAT':'ACKNOWLEDGE FINDING');
     document.getElementById('rc-m-desc').textContent=isThreat
       ?'Describe the confirmed threat. This will flag the submission as POSITIVE FINDING on the dashboard.'
       :'Provide a reason why this finding is benign or not applicable. Be specific \u2014 this record is kept for audit purposes.';
-    document.getElementById('rc-m-save').textContent=isThreat?'Confirm Threat':'Save Acknowledgement';
+    document.getElementById('rc-m-save').textContent=isEdit?'Save Changes':(isThreat?'Confirm Threat':'Save Acknowledgement');
     document.getElementById('rc-m-reason').placeholder=isThreat
       ?'e.g. Confirmed RAT beacon — C2 callback to 185.x.x.x on port 443. Escalated to IR team.'
       :'e.g. .NET shadow copy cache from Solutions clinical app \u2014 not RAT-related. Verified by jsmith 2026-04-02.';
     document.getElementById('rc-m-path').textContent=pathText;
-    document.getElementById('rc-m-reason').value='';
+    document.getElementById('rc-m-reason').value=prefill||'';
     document.getElementById('rc-m-err').textContent='';
+    document.getElementById('rc-m-save').onclick=saveAck;
     overlay.classList.add('open');
     setTimeout(function(){document.getElementById('rc-m-reason').focus()},50);
   }
@@ -285,7 +292,7 @@ function _rcViewFull(){
       saveBtn.textContent=currentThreat?'Confirm Threat':'Save Acknowledgement';
       if(res.status===200||res.status===201||res.status===409){
         overlay.classList.remove('open');
-        markDone(currentEl,reason,res.body.acknowledged_at||new Date().toISOString(),currentThreat);
+        markDone(currentEl,reason,res.body.acknowledged_at||new Date().toISOString(),currentThreat,currentHash);
       } else {
         document.getElementById('rc-m-err').textContent=res.body.error||'Save failed.';
       }
@@ -298,7 +305,7 @@ function _rcViewFull(){
     });
   }
 
-  function markDone(el,reason,when,isThreat){
+  function markDone(el,reason,when,isThreat,hash){
     var btns=el.querySelector('.rc-ack-btns');
     if(btns)btns.remove();
     var old=el.querySelector('.rc-ack-done');
@@ -307,9 +314,55 @@ function _rcViewFull(){
     d.className=isThreat?'rc-ack-done threat':'rc-ack-done';
     var ts=when?new Date(when).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'';
     d.innerHTML=isThreat
-      ?'<span class="rc-ack-check">&#9888;</span><div class="rc-ack-info"><span class="rc-ack-label">CONFIRMED THREAT</span><span class="rc-ack-reason">'+esc(reason)+'</span>'+(ts?'<span class="rc-ack-when">'+esc(ts)+'</span>':'')+'</div>'
-      :'<span class="rc-ack-check">&#10003;</span><div class="rc-ack-info"><span class="rc-ack-label">ACKNOWLEDGED</span><span class="rc-ack-reason">'+esc(reason)+'</span>'+(ts?'<span class="rc-ack-when">'+esc(ts)+'</span>':'')+'</div>';
+      ?'<span class="rc-ack-check">&#9888;</span><div class="rc-ack-info"><span class="rc-ack-label">CONFIRMED THREAT</span><span class="rc-ack-reason">'+esc(reason)+'</span>'+(ts?'<span class="rc-ack-when">'+esc(ts)+'</span>':'')+'<div class="rc-ack-actions"></div></div>'
+      :'<span class="rc-ack-check">&#10003;</span><div class="rc-ack-info"><span class="rc-ack-label">ACKNOWLEDGED</span><span class="rc-ack-reason">'+esc(reason)+'</span>'+(ts?'<span class="rc-ack-when">'+esc(ts)+'</span>':'')+'<div class="rc-ack-actions"></div></div>';
+    if(hash){
+      var actions=d.querySelector('.rc-ack-actions');
+      var editBtn=document.createElement('button');
+      editBtn.className='rc-ack-edit';
+      editBtn.textContent='Edit';
+      var undoBtn=document.createElement('button');
+      undoBtn.className='rc-ack-undo';
+      undoBtn.textContent='Undo';
+      var path=getPathFromFinding(el);
+      (function(h,element,p,r,t){
+        editBtn.onclick=function(){openModal(h,element,p,t,r)};
+        undoBtn.onclick=function(){undoAck(h,element)};
+      })(hash,el,path,reason,isThreat);
+      actions.appendChild(editBtn);
+      actions.appendChild(undoBtn);
+    }
     el.appendChild(d);
+  }
+
+  function undoAck(hash,el){
+    if(!confirm('Remove this acknowledgement? The finding will return to unreviewed.'))return;
+    fetch(B+'/api/submissions/'+SUB+'/acks/'+hash,{method:'DELETE',headers:getHeaders()})
+    .then(function(r){
+      if(r.ok){
+        var done=el.querySelector('.rc-ack-done');
+        if(done)done.remove();
+        var wrap=document.createElement('div');
+        wrap.className='rc-ack-btns';
+        var btn=document.createElement('button');
+        btn.className='rc-ack-btn';
+        btn.textContent='Acknowledge Finding';
+        var tbtn=document.createElement('button');
+        tbtn.className='rc-threat-btn';
+        tbtn.textContent='Confirm Threat';
+        var path=getPathFromFinding(el);
+        (function(h,element,p){
+          btn.onclick=function(){openModal(h,element,p,false)};
+          tbtn.onclick=function(){openModal(h,element,p,true)};
+        })(hash,el,path);
+        wrap.appendChild(btn);
+        wrap.appendChild(tbtn);
+        el.appendChild(wrap);
+      } else {
+        alert('Undo failed \u2014 please try again.');
+      }
+    })
+    .catch(function(){alert('Network error \u2014 please try again.')});
   }
 
   function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -376,7 +429,7 @@ function _rcViewFull(){
         .then(function(res){
           if(res.status===200||res.status===201||res.status===409){
             done++;
-            markDone(item.el,reason,res.body.acknowledged_at||new Date().toISOString(),!!isThreat);
+            markDone(item.el,reason,res.body.acknowledged_at||new Date().toISOString(),!!isThreat,item.hash);
           } else { failed++; }
           saveBtn.textContent='Saving... '+done+'/'+total;
         })
@@ -433,7 +486,7 @@ function _rcViewFull(){
       el.dataset.fhash=hash;
       uniqueHashes.add(hash);
       if(acksMap[hash]){
-        markDone(el,acksMap[hash].reason,acksMap[hash].acknowledged_at,!!acksMap[hash].is_threat);
+        markDone(el,acksMap[hash].reason,acksMap[hash].acknowledged_at,!!acksMap[hash].is_threat,hash);
       } else {
         var wrap=document.createElement('div');
         wrap.className='rc-ack-btns';

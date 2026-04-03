@@ -1,7 +1,7 @@
 import { handleSubmit }                                    from './handlers/submit.js'
 import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport, handleUserSubmissions } from './handlers/api.js'
 import { handleDashboard }                                 from './handlers/dashboard.js'
-import { handleGetAcks, handlePostAck, handleUpdateFindingsCount } from './handlers/ack.js'
+import { handleGetAcks, handlePostAck, handleDeleteAck, handleUpdateFindingsCount } from './handlers/ack.js'
 import { handleUserReport }                                from './handlers/userReport.js'
 
 export default {
@@ -23,6 +23,12 @@ export default {
     const fcMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)\/findings-count$/)
     if (fcMatch && method === 'PUT') {
       return handleUpdateFindingsCount(request, env, fcMatch[1])
+    }
+
+    const ackHashMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)\/acks\/([a-f0-9]+)$/)
+    if (ackHashMatch) {
+      if (method === 'DELETE') return handleDeleteAck(request, env, ackHashMatch[1], ackHashMatch[2])
+      return new Response('Method Not Allowed', { status: 405 })
     }
 
     const ackMatch = path.match(/^\/ratcatcher\/api\/submissions\/([^/]+)\/acks$/)

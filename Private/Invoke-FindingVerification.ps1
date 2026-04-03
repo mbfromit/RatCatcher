@@ -142,6 +142,7 @@ Evaluate this finding. Is it related to the Axios supply chain attack described 
                 @{ role = 'user';   content = $userPrompt }
             )
             stream  = $false
+            think   = $false
             options = @{
                 temperature   = 0.1
                 num_predict   = 1000
@@ -157,6 +158,9 @@ Evaluate this finding. Is it related to the Axios supply chain attack described 
                 -TimeoutSec $TimeoutSec
 
             $responseText = $response.message.content.Trim()
+
+            # Strip any <think>...</think> blocks (qwen3 thinking mode)
+            $responseText = $responseText -replace '(?s)<think>.*?</think>', '' | ForEach-Object { $_.Trim() }
 
             # Parse verdict from response
             $verdict = 'Unknown'

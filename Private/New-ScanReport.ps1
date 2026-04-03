@@ -64,7 +64,8 @@ function New-ScanReport {
             'Likely'        { ' ai-verified' }
             default         { '' }
         }
-        $hash = if ($f.Hash) { "<div class=`"f-row`"><span class=`"f-k`">SHA256</span><span class=`"f-v hash`">$(Esc $f.Hash)</span></div>" } else { '' }
+        $hashVal = if ($f.PSObject.Properties['Hash']) { $f.Hash } else { $null }
+        $hash = if ($hashVal) { "<div class=`"f-row`"><span class=`"f-k`">SHA256</span><span class=`"f-v hash`">$(Esc $hashVal)</span></div>" } else { '' }
         $aiRow = AiVerdictHtml $f
         @"
 <div class="finding $cls$aiCls">

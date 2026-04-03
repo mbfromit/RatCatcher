@@ -3,24 +3,32 @@ const HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RatCatcher - Manager Dashboard</title>
+<title>RatCatcher - Dashboard</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f0f0f;color:#e0e0e0;font-family:'Courier New',monospace;min-height:100vh}
-#login{display:flex;align-items:center;justify-content:center;min-height:100vh}
+#choice,#login,#ulogin{display:none;align-items:center;justify-content:center;min-height:100vh}
+#choice{display:flex}
 .lbox{background:#1a1a1a;border:1px solid #2a2a2a;padding:40px;width:360px}
 .lbox h1{color:#00ff41;font-size:1.5rem;text-align:center;margin-bottom:6px;letter-spacing:2px}
 .lbox .sub{color:#555;text-align:center;font-size:0.78rem;margin-bottom:28px;text-transform:uppercase;letter-spacing:1px}
-input[type=password]{display:block;width:100%;padding:10px;background:#0a0a0a;border:1px solid #333;color:#e0e0e0;font-family:monospace;font-size:0.9rem;margin-bottom:10px}
-input[type=password]:focus{outline:none;border-color:#00ff41}
+.lbox .uhelp{color:#666;font-size:0.75rem;margin-bottom:20px;line-height:1.7}
+.lbox .uhelp code{color:#00ff41;background:#0a0a0a;padding:1px 5px}
+input[type=password],input[type=text]{display:block;width:100%;padding:10px;background:#0a0a0a;border:1px solid #333;color:#e0e0e0;font-family:monospace;font-size:0.9rem;margin-bottom:10px}
+input[type=password]:focus,input[type=text]:focus{outline:none;border-color:#00ff41}
 .btn{display:block;width:100%;padding:10px;background:#00ff41;color:#0f0f0f;border:none;font-family:monospace;font-size:0.9rem;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:1px}
 .btn:hover{background:#00cc33}
+.btn-out{display:block;width:100%;padding:10px;background:none;color:#00ff41;border:1px solid #00ff41;font-family:monospace;font-size:0.9rem;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin-top:10px}
+.btn-out:hover{background:rgba(0,255,65,0.08)}
+.div-or{text-align:center;color:#333;font-size:0.75rem;margin:12px 0}
 .lerr{color:#ff4444;font-size:0.8rem;margin-top:8px;min-height:18px}
-#dash{display:none;padding:24px;max-width:1200px;margin:0 auto}
+.back-link{background:none;border:none;color:#444;font-family:monospace;font-size:0.75rem;cursor:pointer;padding:0;margin-top:14px;display:block;text-align:center;width:100%}
+.back-link:hover{color:#777}
+#dash,#udash{display:none;padding:24px;max-width:1200px;margin:0 auto}
 .hdr{display:flex;align-items:baseline;gap:14px;margin-bottom:24px;border-bottom:1px solid #1a1a1a;padding-bottom:14px}
 .hdr h1{color:#00ff41;font-size:1.1rem;letter-spacing:2px}
 .hdr .badge{color:#444;font-size:0.78rem}
-.stats{display:flex;gap:12px;margin-bottom:28px}
+.stats{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap}
 .stat{flex:1;min-width:120px;background:#1a1a1a;border:1px solid #222;padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s}
 .stat:hover{border-color:#444}
 .stat.selected{border-color:#00ff41}
@@ -28,6 +36,9 @@ input[type=password]:focus{outline:none;border-color:#00ff41}
 .stat .val{font-size:1.8rem;font-weight:bold;color:#e0e0e0}
 .stat.clean .val{color:#00ff41}
 .stat.comp .val{color:#ff4444}
+.stat.pos .val{color:#f85149}
+.stat.rvw .val{color:#3fb950}
+.stat.nrvw .val{color:#f0883e}
 .tblw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:0.82rem}
 th{background:#111;color:#444;text-align:left;padding:8px 14px;font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1e1e1e}
@@ -46,6 +57,7 @@ tr:hover td{background:#1a1a1a}
 .gear{background:none;border:1px solid #2a2a2a;color:#555;padding:4px 10px;cursor:pointer;font-size:0.85rem;font-family:monospace;margin-left:auto}
 .gear:hover{border-color:#555;color:#999}
 .gear.active{border-color:#ff4444;color:#ff4444}
+.gear+.gear{margin-left:0}
 .dbtn{background:none;border:1px solid #4a1a1a;color:#ff4444;padding:3px 8px;cursor:pointer;font-family:monospace;font-size:0.72rem;display:none}
 .dbtn:hover{background:#4a1a1a;border-color:#ff4444}
 .admin-on .dbtn{display:inline-block}
@@ -61,24 +73,52 @@ tr:hover td{background:#1a1a1a}
 .reviewed{color:#3fb950;font-size:0.68rem;font-weight:bold;margin-left:6px;letter-spacing:1px}
 .positive{color:#f85149;font-size:0.68rem;font-weight:bold;margin-left:6px;letter-spacing:1px;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-.stat.pos .val{color:#f85149}
-.stat.rvw .val{color:#3fb950}
-.stat.nrvw .val{color:#f0883e}
-.stats{flex-wrap:wrap}
 </style>
 </head>
 <body>
+
+<!-- Choice screen -->
+<div id="choice">
+  <div class="lbox">
+    <h1>RATCATCHER</h1>
+    <p class="sub">Endpoint Security Scanner</p>
+    <button class="btn" id="goAdmin">&#9881; Admin Dashboard</button>
+    <div class="div-or">&mdash; OR &mdash;</div>
+    <button class="btn-out" id="goUser">&#128196; View My Scans</button>
+  </div>
+</div>
+
+<!-- Admin login -->
 <div id="login">
   <div class="lbox">
     <h1>RATCATCHER</h1>
-    <p class="sub">Manager Dashboard</p>
+    <p class="sub">Admin Dashboard</p>
     <form id="lf">
       <input type="password" id="pw" placeholder="Admin password" autocomplete="current-password">
       <button type="submit" class="btn">Sign In</button>
       <div class="lerr" id="lerr"></div>
     </form>
+    <button class="back-link" id="backChoice">&#8592; Back</button>
   </div>
 </div>
+
+<!-- User login -->
+<div id="ulogin">
+  <div class="lbox">
+    <h1>RATCATCHER</h1>
+    <p class="sub">View My Scans</p>
+    <p class="uhelp">Enter your <strong style="color:#ccc">username</strong> and <strong style="color:#ccc">hostname</strong> as shown at the top of your RatCatcher scan output.<br><br>Not sure of your hostname? Open Command Prompt and type <code>hostname</code>, or check the scan report header.</p>
+    <form id="ulf">
+      <input type="text" id="uname" placeholder="Username (e.g. jsmith)" autocomplete="username">
+      <input type="text" id="uhost" placeholder="Hostname (e.g. DESKTOP-ABC123)" autocomplete="off">
+      <button type="submit" class="btn">View My Scans</button>
+      <div class="lerr" id="ulerr"></div>
+    </form>
+    <button class="back-link" id="backChoiceU">&#8592; Back</button>
+  </div>
+</div>
+
+<!-- Admin dashboard -->
 <div id="dash">
   <div class="hdr">
     <h1>RATCATCHER</h1>
@@ -114,10 +154,57 @@ tr:hover td{background:#1a1a1a}
     <button class="pbtn" id="pn" disabled>Next &rarr;</button>
   </div>
 </div>
+
+<!-- User dashboard -->
+<div id="udash">
+  <div class="hdr">
+    <h1>RATCATCHER</h1>
+    <span class="badge" id="ubadge">My Scans</span>
+    <button class="gear" id="ulogout">&#9211; Sign Out</button>
+  </div>
+  <div class="tblw">
+    <table>
+      <thead><tr>
+        <th>Submitted</th><th>Hostname</th><th>Duration</th><th>Verdict</th><th>Reports</th>
+      </tr></thead>
+      <tbody id="utb"></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <button class="pbtn" id="upp" disabled>&larr; Prev</button>
+    <span class="pginfo" id="upgi"></span>
+    <button class="pbtn" id="upn" disabled>Next &rarr;</button>
+  </div>
+</div>
+
 <script>
-const B='/ratcatcher',L=50;var pw='';let pg=1,refreshTimer=null,vfilter='',rfilter='',pfilter='',srchQ='';
+const B='/ratcatcher',L=50;
+var pw='';
+let pg=1,refreshTimer=null,vfilter='',rfilter='',pfilter='',srchQ='';
+let uPg=1,uUser='',uHost='';
+
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function fmtDur(d){if(!d)return'—';const s=parseFloat(d);if(isNaN(s))return d;const m=s/60;return m<1?'<1 min':Math.round(m)+' min'}
+function fmtDur(d){if(!d)return'\u2014';const s=parseFloat(d);if(isNaN(s))return d;const m=s/60;return m<1?'<1 min':Math.round(m)+' min'}
+function show(id,mode){document.getElementById(id).style.display=mode||'block'}
+function hide(ids){ids.forEach(function(id){document.getElementById(id).style.display='none'})}
+
+// ── Choice screen ──
+function showChoice(){
+  hide(['login','ulogin','dash','udash']);
+  show('choice','flex');
+}
+document.getElementById('goAdmin').addEventListener('click',function(){
+  hide(['choice']);show('login','flex');
+  setTimeout(function(){document.getElementById('pw').focus()},50);
+});
+document.getElementById('goUser').addEventListener('click',function(){
+  hide(['choice']);show('ulogin','flex');
+  setTimeout(function(){document.getElementById('uname').focus()},50);
+});
+document.getElementById('backChoice').addEventListener('click',function(){hide(['login']);showChoice()});
+document.getElementById('backChoiceU').addEventListener('click',function(){hide(['ulogin']);showChoice()});
+
+// ── Admin ──
 async function api(p){return fetch(B+p,{headers:{'X-Admin-Password':pw}})}
 async function chkAuth(){
   if(!pw)return false;
@@ -143,16 +230,20 @@ async function loadRows(){
   if(!d.submissions||!d.submissions.length){
     tb.innerHTML='<tr><td colspan="6" class="empty">No submissions yet.</td></tr>';
   } else {
-    d.submissions.forEach(s=>{
+    d.submissions.forEach(function(s){
       const tr=document.createElement('tr');
       tr.className=s.verdict==='COMPROMISED'?'comp':'clean';
       const dt=new Date(s.submitted_at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
       const ltag=s.is_latest?'<span class="latest">LATEST</span>':'';
       tr.innerHTML='<td>'+esc(dt)+'</td><td>'+esc(s.hostname)+ltag+'</td><td>'+esc(s.username)+'</td>'
         +'<td>'+esc(fmtDur(s.duration))+'</td>'
-        +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')+(s.positive?'<span class="positive"> &#9888; POSITIVE FINDING</span>':s.reviewed?'<span class="reviewed"> &#10003; REVIEWED</span>':'')+'</td>'
-        +'<td><button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;,&#39;brief&#39;)">Exec Brief</button> <button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;,&#39;full&#39;)">Technical Report</button>'
-        +' <button class="dbtn" onclick="del(&#39;'+esc(s.id)+'&#39;,&#39;'+esc(s.hostname)+'&#39;,&#39;'+esc(s.username)+'&#39;)">Delete</button></td>';
+        +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')
+        +(s.positive?'<span class="positive"> &#9888; POSITIVE FINDING</span>':s.reviewed?'<span class="reviewed"> &#10003; REVIEWED</span>':'')+'</td>'
+        +'<td>'
+        +'<button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;,&#39;brief&#39;)">Exec Brief</button> '
+        +'<button class="vbtn" onclick="vw(&#39;'+esc(s.id)+'&#39;,&#39;full&#39;)">Technical Report</button> '
+        +'<button class="dbtn" onclick="del(&#39;'+esc(s.id)+'&#39;,&#39;'+esc(s.hostname)+'&#39;,&#39;'+esc(s.username)+'&#39;)">Delete</button>'
+        +'</td>';
       tb.appendChild(tr);
     });
   }
@@ -161,16 +252,16 @@ async function loadRows(){
   document.getElementById('pp').disabled=pg<=1;
   document.getElementById('pn').disabled=pg>=tp;
 }
-async function vw(id,type='brief'){
-  const r=await api('/api/report/'+id+'/'+type);
+async function vw(id,type){
+  const r=await api('/api/report/'+id+'/'+(type||'brief'));
   if(!r.ok){alert('Failed to load report ('+r.status+')');return;}
   const blob=await r.blob();
   window.open(URL.createObjectURL(blob),'_blank');
 }
 async function refresh(){try{await Promise.all([loadStats(),loadRows()])}catch(e){}}
 async function showDash(){
-  document.getElementById('login').style.display='none';
-  document.getElementById('dash').style.display='block';
+  hide(['choice','login','ulogin','udash']);
+  show('dash','block');
   await Promise.all([loadStats(),loadRows()]);
   if(refreshTimer)clearInterval(refreshTimer);
   refreshTimer=setInterval(refresh,30000);
@@ -178,14 +269,13 @@ async function showDash(){
 function logout(){
   if(refreshTimer)clearInterval(refreshTimer);
   pw='';sessionStorage.removeItem('rcpw');
-  document.getElementById('dash').style.display='none';
   document.getElementById('dash').classList.remove('admin-on');
   document.getElementById('admtog').classList.remove('active');
-  document.getElementById('login').style.display='flex';
   document.getElementById('pw').value='';
   document.getElementById('lerr').textContent='';
+  showChoice();
 }
-document.getElementById('lf').addEventListener('submit',async e=>{
+document.getElementById('lf').addEventListener('submit',async function(e){
   e.preventDefault();
   pw=document.getElementById('pw').value.trim();
   const r=await api('/api/stats');
@@ -206,39 +296,126 @@ document.getElementById('admtog').addEventListener('click',function(){
 });
 function setFilter(v,rv,pf){
   vfilter=v;rfilter=rv??'';pfilter=pf??'';pg=1;
-  document.querySelectorAll('.stat').forEach(el=>el.classList.remove('selected'));
+  document.querySelectorAll('.stat').forEach(function(el){el.classList.remove('selected')});
   if(pf)document.getElementById('f-pos').classList.add('selected');
   else if(rv==='1')document.getElementById('f-reviewed').classList.add('selected');
   else if(rv==='0')document.getElementById('f-notrev').classList.add('selected');
   else document.getElementById(v==='CLEAN'?'f-clean':v==='COMPROMISED'?'f-comp':'f-all').classList.add('selected');
   loadRows();
 }
-document.getElementById('f-all').addEventListener('click',()=>setFilter('','',''));
-document.getElementById('f-clean').addEventListener('click',()=>setFilter('CLEAN','',''));
-document.getElementById('f-comp').addEventListener('click',()=>setFilter('COMPROMISED','',''));
-document.getElementById('f-pos').addEventListener('click',()=>setFilter('','','1'));
-document.getElementById('f-reviewed').addEventListener('click',()=>setFilter('','1',''));
-document.getElementById('f-notrev').addEventListener('click',()=>setFilter('COMPROMISED','0',''));
+document.getElementById('f-all').addEventListener('click',function(){setFilter('','','')});
+document.getElementById('f-clean').addEventListener('click',function(){setFilter('CLEAN','','')});
+document.getElementById('f-comp').addEventListener('click',function(){setFilter('COMPROMISED','','')});
+document.getElementById('f-pos').addEventListener('click',function(){setFilter('','','1')});
+document.getElementById('f-reviewed').addEventListener('click',function(){setFilter('','1','')});
+document.getElementById('f-notrev').addEventListener('click',function(){setFilter('COMPROMISED','0','')});
 let srchTimer=null;
 document.getElementById('srch').addEventListener('input',function(){
   clearTimeout(srchTimer);
-  srchTimer=setTimeout(()=>{srchQ=this.value.trim();pg=1;loadRows()},300);
+  srchTimer=setTimeout(function(){srchQ=document.getElementById('srch').value.trim();pg=1;loadRows()},300);
 });
-document.getElementById('srchclr').addEventListener('click',()=>{
+document.getElementById('srchclr').addEventListener('click',function(){
   document.getElementById('srch').value='';srchQ='';pg=1;loadRows();
 });
 document.getElementById('logout').addEventListener('click',logout);
-document.getElementById('csvbtn').addEventListener('click',async()=>{
+document.getElementById('csvbtn').addEventListener('click',async function(){
   const r=await api('/api/export');
   if(!r.ok){alert('Export failed ('+r.status+')');return;}
   const blob=await r.blob();
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='ratcatcher-export.csv';a.click();
 });
-document.getElementById('pp').addEventListener('click',()=>{pg--;loadRows()});
-document.getElementById('pn').addEventListener('click',()=>{pg++;loadRows()});
-pw=sessionStorage.getItem('rcpw')||'';
-chkAuth().then(ok=>{if(ok)showDash()});
+document.getElementById('pp').addEventListener('click',function(){pg--;loadRows()});
+document.getElementById('pn').addEventListener('click',function(){pg++;loadRows()});
+
+// ── User ──
+async function checkUserAuth(username,hostname){
+  const r=await fetch(B+'/api/user-submissions?username='+encodeURIComponent(username)+'&hostname='+encodeURIComponent(hostname));
+  return r.ok;
+}
+async function loadUserRows(){
+  const r=await fetch(B+'/api/user-submissions?username='+encodeURIComponent(uUser)+'&hostname='+encodeURIComponent(uHost)+'&page='+uPg+'&limit='+L);
+  const d=await r.json();
+  const tb=document.getElementById('utb');
+  tb.innerHTML='';
+  if(!d.submissions||!d.submissions.length){
+    tb.innerHTML='<tr><td colspan="5" class="empty">No scans found.</td></tr>';
+  } else {
+    d.submissions.forEach(function(s){
+      const tr=document.createElement('tr');
+      tr.className=s.verdict==='COMPROMISED'?'comp':'clean';
+      const dt=new Date(s.submitted_at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+      const ltag=s.is_latest?'<span class="latest">LATEST</span>':'';
+      tr.innerHTML='<td>'+esc(dt)+'</td><td>'+esc(s.hostname)+ltag+'</td>'
+        +'<td>'+esc(fmtDur(s.duration))+'</td>'
+        +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')
+        +(s.positive?'<span class="positive"> &#9888; POSITIVE FINDING</span>':s.reviewed?'<span class="reviewed"> &#10003; REVIEWED</span>':'')+'</td>'
+        +'<td>'
+        +'<button class="vbtn" onclick="vwUser(&#39;'+esc(s.id)+'&#39;,&#39;brief&#39;)">Exec Brief</button> '
+        +'<button class="vbtn" onclick="vwUser(&#39;'+esc(s.id)+'&#39;,&#39;full&#39;)">Technical Report</button>'
+        +'</td>';
+      tb.appendChild(tr);
+    });
+  }
+  const tp=Math.max(1,Math.ceil((d.total||0)/L));
+  document.getElementById('upgi').textContent='Page '+uPg+' of '+tp;
+  document.getElementById('upp').disabled=uPg<=1;
+  document.getElementById('upn').disabled=uPg>=tp;
+}
+async function vwUser(id,type){
+  const r=await fetch(B+'/api/user-report/'+id+'/'+(type||'brief')+'?username='+encodeURIComponent(uUser)+'&hostname='+encodeURIComponent(uHost));
+  if(!r.ok){alert('Failed to load report ('+r.status+')');return;}
+  const blob=await r.blob();
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+async function showUserDash(username,hostname){
+  uUser=username;uHost=hostname;uPg=1;
+  document.getElementById('ubadge').textContent=username+' \u2014 '+hostname;
+  hide(['choice','login','ulogin','dash']);
+  show('udash','block');
+  await loadUserRows();
+}
+function userLogout(){
+  uUser='';uHost='';
+  sessionStorage.removeItem('rcuser');
+  showChoice();
+}
+document.getElementById('ulf').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const username=document.getElementById('uname').value.trim();
+  const hostname=document.getElementById('uhost').value.trim();
+  if(!username||!hostname){document.getElementById('ulerr').textContent='Both fields are required.';return;}
+  document.getElementById('ulerr').textContent='Checking\u2026';
+  const ok=await checkUserAuth(username,hostname);
+  if(!ok){document.getElementById('ulerr').textContent='No scans found for that username and hostname.';return;}
+  document.getElementById('ulerr').textContent='';
+  sessionStorage.setItem('rcuser',JSON.stringify({username:username,hostname:hostname}));
+  await showUserDash(username,hostname);
+});
+document.getElementById('ulogout').addEventListener('click',userLogout);
+document.getElementById('upp').addEventListener('click',function(){uPg--;loadUserRows()});
+document.getElementById('upn').addEventListener('click',function(){uPg++;loadUserRows()});
+
+// ── Session restore ──
+(async function(){
+  var savedPw=sessionStorage.getItem('rcpw');
+  var savedUser=sessionStorage.getItem('rcuser');
+  if(savedPw){
+    pw=savedPw;
+    var ok=await chkAuth();
+    if(ok){await showDash();return;}
+    pw='';
+  }
+  if(savedUser){
+    try{
+      var u=JSON.parse(savedUser);
+      var uok=await checkUserAuth(u.username,u.hostname);
+      if(uok){await showUserDash(u.username,u.hostname);return;}
+    }catch(ex){}
+    sessionStorage.removeItem('rcuser');
+  }
+  showChoice();
+})();
 </script>
 </body>
 </html>`

@@ -537,6 +537,56 @@ export async function handleExport(request, env) {
   }
 }
 
+export async function handleUserSubmissions(request, env) {
+  const url      = new URL(request.url)
+  const username = (url.searchParams.get('username') || '').trim()
+  const hostname = (url.searchParams.get('hostname') || '').trim()
+
+  if (!username || !hostname) return json({ error: 'Missing parameters' }, 400)
+
+  const page   = Math.max(1, parseInt(url.searchParams.get('page')  || '1',  10) || 1)
+  const limit  = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 1))
+  const offset = (page - 1) * limit
+
+  try {
+    const countRow = await env.DB.prepare(
+      'SELECT COUNT(*) AS total FROM submissions WHERE LOWER(username) = LOWER(?) AND LOWER(hostname) = LOWER(?)'
+    ).bind(username, hostname).first()
+    const total = countRow?.total ?? 0
+
+    if (!total) return json({ error: 'Not found' }, 404)
+
+    const rows = await env.DB.prepare(`
+      SELECT s.id, s.hostname, s.username, s.submitted_at, s.verdict, s.duration,
+             s.projects_scanned, s.findings_count,
+             CASE WHEN s.submitted_at = latest.max_at THEN 1 ELSE 0 END AS is_latest,
+             COALESCE(ac.ack_count, 0) AS ack_count,
+             COALESCE(tc.threat_count, 0) AS threat_count,
+             CASE WHEN COALESCE(tc.threat_count, 0) > 0 THEN 1 ELSE 0 END AS positive,
+             CASE WHEN COALESCE(tc.threat_count, 0) = 0 AND s.findings_count > 0
+                       AND COALESCE(ac.ack_count, 0) >= s.findings_count
+                  THEN 1 ELSE 0 END AS reviewed
+      FROM submissions s
+      LEFT JOIN (
+        SELECT hostname, MAX(submitted_at) AS max_at FROM submissions GROUP BY hostname
+      ) latest ON s.hostname = latest.hostname
+      LEFT JOIN (
+        SELECT submission_id, COUNT(*) AS ack_count FROM finding_acknowledgements GROUP BY submission_id
+      ) ac ON s.id = ac.submission_id
+      LEFT JOIN (
+        SELECT submission_id, COUNT(*) AS threat_count FROM finding_acknowledgements WHERE is_threat = 1 GROUP BY submission_id
+      ) tc ON s.id = tc.submission_id
+      WHERE LOWER(s.username) = LOWER(?) AND LOWER(s.hostname) = LOWER(?)
+      ORDER BY s.submitted_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(username, hostname, limit, offset).all()
+
+    return json({ total, page, limit, submissions: rows.results })
+  } catch {
+    return json({ error: 'Database error' }, 500)
+  }
+}
+
 function notFound() {
   return new Response(
     '<!DOCTYPE html><html><head><title>Not Found</title></head><body style="background:#0f0f0f;color:#ccc;font-family:monospace;padding:40px"><h2>Report no longer available</h2><p>This report has been removed or has expired.</p></body></html>',

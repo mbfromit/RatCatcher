@@ -1,7 +1,8 @@
 import { handleSubmit }                                    from './handlers/submit.js'
-import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport } from './handlers/api.js'
+import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport, handleUserSubmissions } from './handlers/api.js'
 import { handleDashboard }                                 from './handlers/dashboard.js'
 import { handleGetAcks, handlePostAck, handleUpdateFindingsCount } from './handlers/ack.js'
+import { handleUserReport }                                from './handlers/userReport.js'
 
 export default {
   async fetch(request, env, ctx) {
@@ -33,13 +34,17 @@ export default {
 
     if (method !== 'GET') return new Response('Method Not Allowed', { status: 405 })
 
-    if (path === '/ratcatcher/dashboard')        return handleDashboard(request, env)
-    if (path === '/ratcatcher/api/submissions')  return handleSubmissions(request, env)
-    if (path === '/ratcatcher/api/stats')        return handleStats(request, env)
-    if (path === '/ratcatcher/api/export')       return handleExport(request, env)
+    if (path === '/ratcatcher/dashboard')             return handleDashboard(request, env)
+    if (path === '/ratcatcher/api/submissions')       return handleSubmissions(request, env)
+    if (path === '/ratcatcher/api/stats')             return handleStats(request, env)
+    if (path === '/ratcatcher/api/export')            return handleExport(request, env)
+    if (path === '/ratcatcher/api/user-submissions')  return handleUserSubmissions(request, env)
 
     const reportMatch = path.match(/^\/ratcatcher\/api\/report\/([^/]+)\/(brief|full)$/)
     if (reportMatch) return handleReport(request, env, reportMatch[1], reportMatch[2])
+
+    const userReportMatch = path.match(/^\/ratcatcher\/api\/user-report\/([^/]+)\/(brief|full)$/)
+    if (userReportMatch) return handleUserReport(request, env, userReportMatch[1], userReportMatch[2])
 
     return new Response('Not Found', { status: 404 })
   }

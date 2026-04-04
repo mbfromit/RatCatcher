@@ -7,16 +7,24 @@ const HTML = `<!DOCTYPE html>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f0f0f;color:#e0e0e0;font-family:'Courier New',monospace;min-height:100vh}
-#login{display:flex;align-items:center;justify-content:center;min-height:100vh}
+#choice,#login,#ulogin{display:none;align-items:center;justify-content:center;min-height:100vh}
+#choice{display:flex}
 .lbox{background:#1a1a1a;border:1px solid #2a2a2a;padding:40px;width:360px}
 .lbox h1{color:#00ff41;font-size:1.5rem;text-align:center;margin-bottom:6px;letter-spacing:2px}
 .lbox .sub{color:#555;text-align:center;font-size:0.78rem;margin-bottom:28px;text-transform:uppercase;letter-spacing:1px}
-input[type=password]{display:block;width:100%;padding:10px;background:#0a0a0a;border:1px solid #333;color:#e0e0e0;font-family:monospace;font-size:0.9rem;margin-bottom:10px}
-input[type=password]:focus{outline:none;border-color:#00ff41}
+.lbox .uhelp{color:#666;font-size:0.75rem;margin-bottom:20px;line-height:1.7}
+.lbox .uhelp code{color:#00ff41;background:#0a0a0a;padding:1px 5px}
+input[type=password],input[type=text]{display:block;width:100%;padding:10px;background:#0a0a0a;border:1px solid #333;color:#e0e0e0;font-family:monospace;font-size:0.9rem;margin-bottom:10px}
+input[type=password]:focus,input[type=text]:focus{outline:none;border-color:#00ff41}
+.btn-out{display:block;width:100%;padding:10px;background:none;color:#00ff41;border:1px solid #00ff41;font-family:monospace;font-size:0.9rem;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin-top:10px}
+.btn-out:hover{background:rgba(0,255,65,0.08)}
+.div-or{text-align:center;color:#333;font-size:0.75rem;margin:12px 0}
+.back-link{background:none;border:none;color:#444;font-family:monospace;font-size:0.75rem;cursor:pointer;padding:0;margin-top:14px;display:block;text-align:center;width:100%}
+.back-link:hover{color:#777}
 .btn{display:block;width:100%;padding:10px;background:#00ff41;color:#0f0f0f;border:none;font-family:monospace;font-size:0.9rem;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:1px}
 .btn:hover{background:#00cc33}
 .lerr{color:#ff4444;font-size:0.8rem;margin-top:8px;min-height:18px}
-#dash{display:none;padding:24px;max-width:1600px;margin:0 auto}
+#dash,#udash{display:none;padding:24px;max-width:1600px;margin:0 auto}
 .hdr{display:flex;align-items:baseline;gap:14px;margin-bottom:24px;border-bottom:1px solid #1a1a1a;padding-bottom:14px}
 .hdr h1{color:#00ff41;font-size:1.1rem;letter-spacing:2px}
 .hdr .badge{color:#444;font-size:0.78rem}
@@ -46,6 +54,7 @@ tr:hover td{background:#1a1a1a}
 .gear{background:none;border:1px solid #2a2a2a;color:#555;padding:4px 10px;cursor:pointer;font-size:0.85rem;font-family:monospace;margin-left:auto}
 .gear:hover{border-color:#555;color:#999}
 .gear.active{border-color:#ff4444;color:#ff4444}
+.gear+.gear{margin-left:0}
 .dbtn{background:none;border:1px solid #4a1a1a;color:#ff4444;padding:3px 8px;cursor:pointer;font-family:monospace;font-size:0.72rem;display:none}
 .dbtn:hover{background:#4a1a1a;border-color:#ff4444}
 .admin-on .dbtn{display:inline-block}
@@ -170,6 +179,20 @@ tr.ai-fp .vrd{color:#e8a838;font-weight:bold}
 </style>
 </head>
 <body>
+
+<!-- Choice screen -->
+<div id="choice">
+  <div class="lbox">
+    <h1>RATCATCHER 2.0</h1>
+    <p class="sub">Endpoint Security Scanner</p>
+    <button class="btn" id="goAdmin">&#9881; Admin Dashboard</button>
+    <div class="div-or">&mdash; OR &mdash;</div>
+    <button class="btn-out" id="goUser">&#128196; View My Scans</button>
+    <p style="text-align:center;margin-top:18px;font-size:0.9rem;color:#58a6ff;cursor:pointer" onclick="document.getElementById('wn-overlay').classList.add('open')"><span style="text-decoration:underline">Read What's New</span> &rarr;</p>
+  </div>
+</div>
+
+<!-- Admin login -->
 <div id="login">
   <div class="lbox">
     <h1>RATCATCHER 2.0</h1>
@@ -179,6 +202,22 @@ tr.ai-fp .vrd{color:#e8a838;font-weight:bold}
       <button type="submit" class="btn">Sign In</button>
       <div class="lerr" id="lerr"></div>
     </form>
+    <button class="back-link" id="backChoice">&#8592; Back</button>
+  </div>
+</div>
+
+<!-- User login -->
+<div id="ulogin">
+  <div class="lbox">
+    <h1>RATCATCHER 2.0</h1>
+    <p class="sub">View My Scans</p>
+    <p class="uhelp">Enter the <strong style="color:#ccc">username</strong> you were logged in as when your RatCatcher scan was run.<br><br>Not sure? Check the top of your scan output, or open Command Prompt and type <code>whoami</code>.</p>
+    <form id="ulf">
+      <input type="text" id="uname" placeholder="Username (e.g. jsmith)" autocomplete="username">
+      <button type="submit" class="btn">View My Scans</button>
+      <div class="lerr" id="ulerr"></div>
+    </form>
+    <button class="back-link" id="backChoiceU">&#8592; Back</button>
   </div>
 </div>
 <div id="dash">
@@ -224,6 +263,28 @@ tr.ai-fp .vrd{color:#e8a838;font-weight:bold}
     <button class="pbtn" id="pn" disabled>Next &rarr;</button>
   </div>
 </div>
+<!-- User dashboard -->
+<div id="udash">
+  <div class="hdr">
+    <h1>RATCATCHER 2.0</h1>
+    <span class="badge" id="ubadge">My Scans</span>
+    <button class="gear" id="ulogout">&#9211; Sign Out</button>
+  </div>
+  <div class="tblw">
+    <table>
+      <thead><tr>
+        <th>Submitted</th><th>Hostname</th><th>Duration</th><th>Verdict</th><th>Reports</th>
+      </tr></thead>
+      <tbody id="utb"></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <button class="pbtn" id="upp" disabled>&larr; Prev</button>
+    <span class="pginfo" id="upgi"></span>
+    <button class="pbtn" id="upn" disabled>Next &rarr;</button>
+  </div>
+</div>
+
 <div class="legend-overlay" id="legend-overlay">
   <div class="legend-modal">
     <h2>STATUS LEGEND</h2>
@@ -339,6 +400,25 @@ tr.ai-fp .vrd{color:#e8a838;font-weight:bold}
 function _vl(s){if(s.ai_verdict==='AI_PENDING')return'[...] AI Evaluating';if(s.ai_verdict==='AI_COMPROMISE')return'[!] AI Verified Compromise';if(s.ai_verdict==='AI_FALSE_POSITIVE')return'[~] AI Verified RAT Free!';if(s.ai_verdict==='AI_CLEAN')return'[+] AI Verified Clean';if(s.ai_verdict==='AI_PARTIAL')return'[!] AI Partial - Re-Evaluate';return s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN'}
 function _certBadge(s){if(s.ai_verdict!=='AI_COMPROMISE')return'';if(s.certified_by)return'<span class="cert-done"> &#10003; Certified by '+esc(s.certified_by)+'</span>';return'<span class="await-review"> &#9888; Awaiting Manager Review</span>';}
 const B=location.pathname.replace(/\\/dashboard$/,''),L=50;var pw='';let pg=1,refreshTimer=null,vfilter='',rfilter='',pfilter='',srchQ='';
+let uPg=1,uUser='';
+function show(id,mode){document.getElementById(id).style.display=mode||'block'}
+function hide(ids){ids.forEach(function(id){document.getElementById(id).style.display='none'})}
+
+// -- Choice screen --
+function showChoice(){
+  hide(['login','ulogin','dash','udash']);
+  show('choice','flex');
+}
+document.getElementById('goAdmin').addEventListener('click',function(){
+  hide(['choice']);show('login','flex');
+  setTimeout(function(){document.getElementById('pw').focus()},50);
+});
+document.getElementById('goUser').addEventListener('click',function(){
+  hide(['choice']);show('ulogin','flex');
+  setTimeout(function(){document.getElementById('uname').focus()},50);
+});
+document.getElementById('backChoice').addEventListener('click',function(){hide(['login']);showChoice()});
+document.getElementById('backChoiceU').addEventListener('click',function(){hide(['ulogin']);showChoice()});
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function fmtDur(d){if(!d)return'—';const s=parseFloat(d);if(isNaN(s))return d;const m=s/60;return m<1?'<1 min':Math.round(m)+' min'}
 async function api(p){return fetch(B+p,{headers:{'X-Admin-Password':pw}})}
@@ -399,23 +479,23 @@ async function vw(id,type='brief'){
 }
 async function refresh(){try{await Promise.all([loadStats(),loadRows()])}catch(e){}}
 async function showDash(){
-  document.getElementById('login').style.display='none';
-  document.getElementById('dash').style.display='block';
+  hide(['choice','login','ulogin','udash']);
+  show('dash','block');
   await Promise.all([loadStats(),loadRows()]);
   if(refreshTimer)clearInterval(refreshTimer);
   refreshTimer=setInterval(refresh,30000);
+  initBanner();
 }
 function logout(){
   if(refreshTimer)clearInterval(refreshTimer);
   pw='';sessionStorage.removeItem('rcpw');
-  document.getElementById('dash').style.display='none';
   document.getElementById('dash').classList.remove('admin-on');
   document.getElementById('admtog').classList.remove('active');
-  document.getElementById('login').style.display='flex';
   document.getElementById('pw').value='';
   document.getElementById('lerr').textContent='';
+  showChoice();
 }
-document.getElementById('lf').addEventListener('submit',async e=>{
+document.getElementById('lf').addEventListener('submit',async function(e){
   e.preventDefault();
   pw=document.getElementById('pw').value.trim();
   const r=await api('/api/stats');
@@ -769,8 +849,93 @@ function initBanner(){
     }
   }catch(e){}
 }
-pw=sessionStorage.getItem('rcpw')||'';
-chkAuth().then(ok=>{if(ok){showDash();initBanner()}});
+// -- User --
+async function checkUserAuth(username){
+  var r=await fetch(B+'/api/user-submissions?username='+encodeURIComponent(username));
+  return r.ok;
+}
+async function loadUserRows(){
+  var r=await fetch(B+'/api/user-submissions?username='+encodeURIComponent(uUser)+'&page='+uPg+'&limit='+L);
+  var d=await r.json();
+  var tb=document.getElementById('utb');
+  tb.innerHTML='';
+  if(!d.submissions||!d.submissions.length){
+    tb.innerHTML='<tr><td colspan="5" class="empty">No scans found.</td></tr>';
+  } else {
+    d.submissions.forEach(function(s){
+      var tr=document.createElement('tr');
+      tr.className=s.verdict==='COMPROMISED'?'comp':'clean';
+      var dt=new Date(s.submitted_at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+      var ltag=s.is_latest?'<span class="latest">LATEST</span>':'';
+      tr.innerHTML='<td>'+esc(dt)+'</td><td>'+esc(s.hostname)+ltag+'</td>'
+        +'<td>'+esc(fmtDur(s.duration))+'</td>'
+        +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')
+        +(s.positive?'<span class="positive"> &#9888; POSITIVE FINDING</span>':s.reviewed?'<span class="reviewed"> &#10003; REVIEWED</span>':'')+'</td>'
+        +'<td>'
+        +'<button class="vbtn" onclick="vwUser(&#39;'+esc(s.id)+'&#39;,&#39;brief&#39;)">Exec Brief</button> '
+        +'<button class="vbtn" onclick="vwUser(&#39;'+esc(s.id)+'&#39;,&#39;full&#39;)">Technical Report</button>'
+        +'</td>';
+      tb.appendChild(tr);
+    });
+  }
+  var tp=Math.max(1,Math.ceil((d.total||0)/L));
+  document.getElementById('upgi').textContent='Page '+uPg+' of '+tp;
+  document.getElementById('upp').disabled=uPg<=1;
+  document.getElementById('upn').disabled=uPg>=tp;
+}
+async function vwUser(id,type){
+  var r=await fetch(B+'/api/user-report/'+id+'/'+(type||'brief')+'?username='+encodeURIComponent(uUser));
+  if(!r.ok){alert('Failed to load report ('+r.status+')');return;}
+  var blob=await r.blob();
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+async function showUserDash(username){
+  uUser=username;uPg=1;
+  document.getElementById('ubadge').textContent=username+"'s Scans";
+  hide(['choice','login','ulogin','dash']);
+  show('udash','block');
+  await loadUserRows();
+}
+function userLogout(){
+  uUser='';
+  sessionStorage.removeItem('rcuser');
+  showChoice();
+}
+document.getElementById('ulf').addEventListener('submit',async function(e){
+  e.preventDefault();
+  var username=document.getElementById('uname').value.trim();
+  if(!username){document.getElementById('ulerr').textContent='Username is required.';return;}
+  document.getElementById('ulerr').textContent='Checking...';
+  var ok=await checkUserAuth(username);
+  if(!ok){document.getElementById('ulerr').textContent='No scans found for that username.';return;}
+  document.getElementById('ulerr').textContent='';
+  sessionStorage.setItem('rcuser',JSON.stringify({username:username}));
+  await showUserDash(username);
+});
+document.getElementById('ulogout').addEventListener('click',userLogout);
+document.getElementById('upp').addEventListener('click',function(){uPg--;loadUserRows()});
+document.getElementById('upn').addEventListener('click',function(){uPg++;loadUserRows()});
+
+// -- Session restore --
+(async function(){
+  var savedPw=sessionStorage.getItem('rcpw');
+  var savedUser=sessionStorage.getItem('rcuser');
+  if(savedPw){
+    pw=savedPw;
+    var ok=await chkAuth();
+    if(ok){await showDash();return;}
+    pw='';
+  }
+  if(savedUser){
+    try{
+      var u=JSON.parse(savedUser);
+      var uok=await checkUserAuth(u.username);
+      if(uok){await showUserDash(u.username);return;}
+    }catch(ex){}
+    sessionStorage.removeItem('rcuser');
+  }
+  showChoice();
+})();
 </script>
 </body>
 </html>`

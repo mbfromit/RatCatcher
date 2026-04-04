@@ -1,8 +1,9 @@
 import { handleSubmit }                                    from './handlers/submit.js'
-import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport } from './handlers/api.js'
+import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport, handleUserSubmissions } from './handlers/api.js'
 import { handleDashboard }                                 from './handlers/dashboard.js'
-import { handleGetAcks, handlePostAck, handleUpdateFindingsCount, handleCertify } from './handlers/ack.js'
+import { handleGetAcks, handlePostAck, handleDeleteAck, handleUpdateFindingsCount, handleCertify } from './handlers/ack.js'
 import { handleAiVerify, handleGetAiVerdicts, handleAiVerifyAll, handleAiStatus, handleAiWarmup } from './handlers/ai-verify.js'
+import { handleUserReport }                                from './handlers/userReport.js'
 
 export default {
   async fetch(request, env, ctx) {
@@ -29,6 +30,12 @@ export default {
     const fcMatch = rel.match(/^\/api\/submissions\/([^/]+)\/findings-count$/)
     if (fcMatch && method === 'PUT') {
       return handleUpdateFindingsCount(request, env, fcMatch[1])
+    }
+
+    const ackHashMatch = rel.match(/^\/api\/submissions\/([^/]+)\/acks\/([a-f0-9]+)$/)
+    if (ackHashMatch) {
+      if (method === 'DELETE') return handleDeleteAck(request, env, ackHashMatch[1], ackHashMatch[2])
+      return new Response('Method Not Allowed', { status: 405 })
     }
 
     const ackMatch = rel.match(/^\/api\/submissions\/([^/]+)\/acks$/)
@@ -63,14 +70,18 @@ export default {
 
     if (method !== 'GET') return new Response('Method Not Allowed', { status: 405 })
 
-    if (rel === '/dashboard')        return handleDashboard(request, env)
-    if (rel === '/api/submissions')  return handleSubmissions(request, env)
-    if (rel === '/api/stats')        return handleStats(request, env)
-    if (rel === '/api/export')       return handleExport(request, env)
-    if (rel === '/api/ai-status')    return handleAiStatus(request, env)
+    if (rel === '/dashboard')              return handleDashboard(request, env)
+    if (rel === '/api/submissions')        return handleSubmissions(request, env)
+    if (rel === '/api/stats')              return handleStats(request, env)
+    if (rel === '/api/export')             return handleExport(request, env)
+    if (rel === '/api/ai-status')          return handleAiStatus(request, env)
+    if (rel === '/api/user-submissions')   return handleUserSubmissions(request, env)
 
     const reportMatch = rel.match(/^\/api\/report\/([^/]+)\/(brief|full)$/)
     if (reportMatch) return handleReport(request, env, reportMatch[1], reportMatch[2])
+
+    const userReportMatch = rel.match(/^\/api\/user-report\/([^/]+)\/(brief|full)$/)
+    if (userReportMatch) return handleUserReport(request, env, userReportMatch[1], userReportMatch[2])
 
     return new Response('Not Found', { status: 404 })
   }

@@ -258,7 +258,7 @@ if (-not $NoSubmit) {
     $submitVerdict  = if ($vulnCount -gt 0 -or $criticalCount -gt 0) { 'COMPROMISED' } else { 'CLEAN' }
 
     $submitResult = Submit-ScanToApi `
-        -ApiUrl          'https://mbfromit.com/ratcatcher-dev/submit' `
+        -ApiUrl          'https://mbfromit.com/ratcatcher/submit' `
         -Password        $submitPassword `
         -Hostname        $hn `
         -Username        $metadata.Username `

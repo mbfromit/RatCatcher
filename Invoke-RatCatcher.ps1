@@ -256,7 +256,7 @@ $briefingPath = New-ExecBriefing `
 Write-Log "Executive briefing: $briefingPath"
 
 # ── Check 10: Submit to dashboard ─────────────────────────────────────────────
-$vulnCount      = @($lockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto }).Count
+$vulnCount      = @($lockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto -or $_.HasMaliciousOpenclaw }).Count
 $criticalCount  = @($artifacts + $cacheFindings + $droppedPayloads + $persistenceArtifacts + $xorFindings + $networkEvidence | Where-Object { $_.Severity -eq 'Critical' }).Count
 
 if (-not $NoSubmit) {

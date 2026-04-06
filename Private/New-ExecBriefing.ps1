@@ -26,7 +26,7 @@ function New-ExecBriefing {
     $NetworkEvidence      = @($NetworkEvidence      | Where-Object { $_ })
 
     # ── Per-check pass/fail ────────────────────────────────────────────────────
-    $vulnLockfiles = @($LockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto })
+    $vulnLockfiles = @($LockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto -or $_.HasMaliciousOpenclaw })
 
     # Helpers: count AI verdicts in a category
     function Get-AiVerifiedCount($findings) {

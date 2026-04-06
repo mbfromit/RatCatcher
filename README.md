@@ -215,6 +215,8 @@ Submits the scan results (verdict, finding counts, and report files) to the RatC
 | `axios` v0.30.4 | npm package | Compromised release |
 | `plain-crypto-js` v4.2.0 | npm package | Staging package (precursor) |
 | `plain-crypto-js` v4.2.1 | npm package | Malicious RAT-dropping dependency |
+| `@shadanai/openclaw` | npm package | Distributes same plain-crypto-js malware |
+| `@qqbrowser/openclaw-qbot` | npm package | Distributes same plain-crypto-js malware |
 | `e10b1fa84f1d6481625f741b69892780140d4e0e7769e7491e5f4d894c2e0e09` | SHA-256 | Known malicious `setup.js` |
 | `617b67a8e1210e4fc87c92d1d1da45a2f311c08d26e89b12307cf583c900d101` | SHA-256 | Windows PowerShell RAT payload |
 | `92ff08773995ebc8d55ec4b8e1a225d0d1e51efa4ef88b8849d0071230c9645a` | SHA-256 | macOS C++ binary payload |

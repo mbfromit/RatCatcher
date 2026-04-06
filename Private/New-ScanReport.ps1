@@ -23,7 +23,7 @@ function New-ScanReport {
     $XorFindings          = @($XorFindings          | Where-Object { $_ })
     $NetworkEvidence      = @($NetworkEvidence      | Where-Object { $_ })
 
-    $vulnProjects  = @($LockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto })
+    $vulnProjects  = @($LockfileResults | Where-Object { $_.HasVulnerableAxios -or $_.HasMaliciousPlainCrypto -or $_.HasMaliciousOpenclaw })
     $allFindings   = $Artifacts + $CacheFindings + $DroppedPayloads + $PersistenceArtifacts + $XorFindings + $NetworkEvidence
     $criticalCount = @($allFindings | Where-Object { $_.Severity -eq 'Critical' }).Count
     $overallStatus = if ($vulnProjects.Count -gt 0 -or $allFindings.Count -gt 0) { 'COMPROMISED' } else { 'CLEAN' }
@@ -112,12 +112,13 @@ function New-ScanReport {
             $vp = $_
             $axiosRow  = if ($vp.HasVulnerableAxios)      { "<div class=`"f-row`"><span class=`"f-k`">FINDING</span><span class=`"f-v`"><span class=`"badge b-critical`">CRITICAL</span> axios@$(Esc $vp.VulnerableAxiosVersion)</span></div>" } else { '' }
             $cryptoRow = if ($vp.HasMaliciousPlainCrypto)  { "<div class=`"f-row`"><span class=`"f-k`">FINDING</span><span class=`"f-v`"><span class=`"badge b-critical`">CRITICAL</span> plain-crypto-js@4.2.1</span></div>" } else { '' }
+            $openclawRow = if ($vp.HasMaliciousOpenclaw)  { "<div class=`"f-row`"><span class=`"f-k`">FINDING</span><span class=`"f-v`"><span class=`"badge b-critical`">CRITICAL</span> $(Esc $vp.MaliciousPackageName) (same malware as plain-crypto-js)</span></div>" } else { '' }
             @"
 <div class="finding f-critical">
   <div class="f-head"><span class="badge b-critical">VULNERABLE</span><span class="f-type">$(Esc $vp.ProjectPath)</span></div>
   <div class="f-meta">
     <div class="f-row"><span class="f-k">LOCKFILE</span><span class="f-v">$(Esc $vp.LockfileType) — $(Esc $vp.LockfilePath)</span></div>
-    $axiosRow$cryptoRow
+    $axiosRow$cryptoRow$openclawRow
     <div class="f-row"><span class="f-k">FIX</span><span class="f-v">npm install axios@1.14.0 &amp;&amp; npm cache clean --force &amp;&amp; rm -rf node_modules &amp;&amp; npm install</span></div>
   </div>
 </div>

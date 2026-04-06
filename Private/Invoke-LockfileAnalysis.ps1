@@ -4,11 +4,15 @@ function Invoke-LockfileAnalysis {
 
     $vulnAxios   = @('1.14.1', '0.30.4')
     $vulnCrypto  = '4.2.1'
+    # Additional packages distributing the same plain-crypto-js malware
+    $vulnOpenclaw = @('@shadanai/openclaw', '@qqbrowser/openclaw-qbot')
     $result = [PSCustomObject]@{
         ProjectPath             = $ProjectPath
         HasVulnerableAxios      = $false
         VulnerableAxiosVersion  = $null
         HasMaliciousPlainCrypto = $false
+        HasMaliciousOpenclaw    = $false
+        MaliciousPackageName    = $null
         LockfileType            = $null
         LockfilePath            = $null
         Error                   = $null
@@ -30,6 +34,12 @@ function Invoke-LockfileAnalysis {
             foreach ($m in [regex]::Matches($content, '"(?:node_modules/)?plain-crypto-js"\s*:\s*\{[^"]*"version"\s*:\s*"([^"]+)"')) {
                 if ($m.Groups[1].Value -eq $vulnCrypto) { $result.HasMaliciousPlainCrypto = $true }
             }
+            foreach ($pkg in $vulnOpenclaw) {
+                $escaped = [regex]::Escape($pkg)
+                if ($content -match "(?:node_modules/)?$escaped") {
+                    $result.HasMaliciousOpenclaw = $true; $result.MaliciousPackageName = $pkg
+                }
+            }
         } catch { $result.Error = "Failed to parse package-lock.json: $_" }
 
     } elseif (Test-Path $yarnLock) {
@@ -41,6 +51,12 @@ function Invoke-LockfileAnalysis {
             }
             foreach ($m in [regex]::Matches($content, '(?m)^plain-crypto-js@[^\n]+\n\s+version\s+"([^"]+)"')) {
                 if ($m.Groups[1].Value -eq $vulnCrypto) { $result.HasMaliciousPlainCrypto = $true }
+            }
+            foreach ($pkg in $vulnOpenclaw) {
+                $escaped = [regex]::Escape($pkg)
+                if ($content -match "(?m)^`"?$escaped") {
+                    $result.HasMaliciousOpenclaw = $true; $result.MaliciousPackageName = $pkg
+                }
             }
         } catch { $result.Error = "Failed to parse yarn.lock: $_" }
 
@@ -54,6 +70,12 @@ function Invoke-LockfileAnalysis {
             }
             foreach ($m in [regex]::Matches($content, '(?m)^\s+(?:/|)plain-crypto-js[/@]([^\s:]+):')) {
                 if ($m.Groups[1].Value -eq $vulnCrypto) { $result.HasMaliciousPlainCrypto = $true }
+            }
+            foreach ($pkg in $vulnOpenclaw) {
+                $escaped = [regex]::Escape($pkg)
+                if ($content -match $escaped) {
+                    $result.HasMaliciousOpenclaw = $true; $result.MaliciousPackageName = $pkg
+                }
             }
         } catch { $result.Error = "Failed to parse pnpm-lock.yaml: $_" }
     }

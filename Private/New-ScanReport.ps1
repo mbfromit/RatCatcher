@@ -50,7 +50,7 @@ function New-ScanReport {
     }
 
     function AiVerdictHtml($f) {
-        if (-not $f.AiVerdict) { return '' }
+        if (-not $f.PSObject.Properties['AiVerdict'] -or -not $f.AiVerdict) { return '' }
         $cls = switch ($f.AiVerdict) {
             'Confirmed'     { 'ai-confirmed' }
             'Likely'        { 'ai-likely' }
@@ -65,7 +65,7 @@ function New-ScanReport {
             'FalsePositive' { 'AI REVIEWED — FALSE POSITIVE' }
             default         { 'AI REVIEW — INCONCLUSIVE' }
         }
-        $reason = if ($f.AiReason) { "<div class=`"f-row`"><span class=`"f-k`">AI NOTE</span><span class=`"f-v ai-reason`">$(Esc $f.AiReason)</span></div>" } else { '' }
+        $reason = if ($f.PSObject.Properties['AiReason'] -and $f.AiReason) { "<div class=`"f-row`"><span class=`"f-k`">AI NOTE</span><span class=`"f-v ai-reason`">$(Esc $f.AiReason)</span></div>" } else { '' }
         "<div class=`"f-row`"><span class=`"f-k`">AI VERDICT</span><span class=`"f-v`"><span class=`"badge $cls`">$label</span></span></div>$reason"
     }
 

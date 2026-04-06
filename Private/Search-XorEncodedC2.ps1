@@ -21,19 +21,28 @@ function Search-XorEncodedC2 {
     )
 
     if (-not $SearchPaths) {
-        $localAppData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { $env:HOME }
-        $appData      = if ($env:APPDATA)      { $env:APPDATA }      else { Join-Path $env:HOME '.config' }
-        $SearchPaths = @(
-            $env:TEMP, $env:TMP,
-            $localAppData,
-            $appData
-        ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+        if ($IsWindows) {
+            $localAppData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { $env:HOME }
+            $appData      = if ($env:APPDATA)      { $env:APPDATA }      else { Join-Path $env:HOME '.config' }
+            $SearchPaths = @($env:TEMP, $env:TMP, $localAppData, $appData)
+        } elseif ($IsMacOS) {
+            $SearchPaths = @('/tmp', (Join-Path $env:HOME 'Library/Caches'), (Join-Path $env:HOME '.config'))
+        } else {
+            $SearchPaths = @('/tmp', '/var/tmp', (Join-Path $env:HOME '.cache'), (Join-Path $env:HOME '.config'))
+        }
+        $SearchPaths = @($SearchPaths | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique)
     }
 
     $c2Indicators = @('sfrclak.com', 'callnrwise.com', '142.11.206.73')
     $findings     = [System.Collections.Generic.List[PSCustomObject]]::new()
     # Only scan file types that could plausibly carry an obfuscated payload
-    $scanExts     = @('.exe', '.dll', '.bin', '.dat', '.ps1', '.js', '.vbs', '.bat', '.tmp', '.log')
+    if ($IsWindows) {
+        $scanExts = @('.exe', '.dll', '.bin', '.dat', '.ps1', '.js', '.vbs', '.bat', '.tmp', '.log')
+    } elseif ($IsMacOS) {
+        $scanExts = @('.dylib', '.bin', '.dat', '.sh', '.py', '.js', '.tmp', '.log', '.command')
+    } else {
+        $scanExts = @('.so', '.elf', '.bin', '.dat', '.sh', '.py', '.js', '.tmp', '.log')
+    }
 
     foreach ($scanPath in $SearchPaths) {
         try {

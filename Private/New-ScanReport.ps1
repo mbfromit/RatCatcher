@@ -196,14 +196,22 @@ function New-ScanReport {
 
     # Credentials
     $homeDir  = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
-    $credRows = @(
+    $credPaths = @(
         (Join-Path $homeDir '.ssh'),
         (Join-Path $homeDir '.gitconfig'),
         (Join-Path $homeDir '.npmrc'),
-        (Join-Path $homeDir '.aws\credentials'),
-        (Join-Path $homeDir '.kube\config'),
-        (Join-Path $homeDir '.docker\config.json')
-    ) | ForEach-Object {
+        (Join-Path $homeDir (Join-Path '.aws' 'credentials')),
+        (Join-Path $homeDir (Join-Path '.kube' 'config')),
+        (Join-Path $homeDir (Join-Path '.docker' 'config.json'))
+    )
+    if ($IsMacOS) {
+        $credPaths += (Join-Path $homeDir 'Library/Keychains')
+        $credPaths += (Join-Path $homeDir '.zsh_history')
+    } elseif (-not $IsWindows) {
+        $credPaths += (Join-Path $homeDir '.bash_history')
+        $credPaths += (Join-Path $homeDir '.gnupg')
+    }
+    $credRows = @($credPaths) | ForEach-Object {
         $present = Test-Path $_
         $label   = if ($present) { '<span class="badge b-high">PRESENT</span>' } else { '<span class="badge b-info">NOT FOUND</span>' }
         "<div class=`"f-row`"><span class=`"f-k`">$label</span><span class=`"f-v`">$(Esc $_)</span></div>"

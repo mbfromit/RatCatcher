@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+#Requires -Version 7.0
 <#
 .SYNOPSIS
     RatCatcher — scans for evidence of the March 31, 2026 Axios NPM supply chain attack.
@@ -31,7 +31,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
-$RatCatcherVersion = '2.0.0'
+$RatCatcherVersion = '2.1.0'
 
 $pvt = Join-Path $PSScriptRoot 'Private'
 . (Join-Path $pvt 'Get-NodeProjects.ps1')
@@ -57,33 +57,47 @@ if (Test-Path $logoFile) {
 
 
 # ── Resolve scan paths (expand drive roots, skip OS/system folders) ───────────
-$excludedTopLevel = @(
-    # OS and system
-    'Windows', 'Program Files', 'Program Files (x86)',
-    'ProgramData', 'Recovery', 'System Volume Information',
-    'MSOCache', 'OneDriveTemp', '$Recycle.Bin', 'Config.Msi',
-    # Media and documents (never contain Node.js projects)
-    'Mp3s', 'WAVs', 'Videos', 'Music', 'Photos', 'Pictures',
-    # Virtual machines and large binaries
-    'VirtualMachines', 'VMs', 'Hyper-V',
-    # Hardware and drivers
-    'Intel', 'Dell', 'Drivers', 'AMD', 'NVIDIA',
-    # Logs and temp (scanned separately by checks 4-5)
-    'Logs', 'dumps', 'PerfLogs',
-    # Misc non-dev
-    'inetpub'
-)
+if ($IsWindows) {
+    $excludedTopLevel = @(
+        # OS and system
+        'Windows', 'Program Files', 'Program Files (x86)',
+        'ProgramData', 'Recovery', 'System Volume Information',
+        'MSOCache', 'OneDriveTemp', '$Recycle.Bin', 'Config.Msi',
+        # Media and documents (never contain Node.js projects)
+        'Mp3s', 'WAVs', 'Videos', 'Music', 'Photos', 'Pictures',
+        # Virtual machines and large binaries
+        'VirtualMachines', 'VMs', 'Hyper-V',
+        # Hardware and drivers
+        'Intel', 'Dell', 'Drivers', 'AMD', 'NVIDIA',
+        # Logs and temp (scanned separately by checks 4-5)
+        'Logs', 'dumps', 'PerfLogs',
+        # Misc non-dev
+        'inetpub'
+    )
+} else {
+    $excludedTopLevel = @(
+        # OS and system (macOS + Linux)
+        'bin', 'sbin', 'boot', 'dev', 'proc', 'sys', 'run',
+        'System', 'Library', 'Applications', 'Volumes',
+        # Package managers and system libraries
+        'usr', 'snap', 'flatpak',
+        # Temp and logs (scanned separately by checks 4-5)
+        'tmp', 'var',
+        # Misc
+        'lost+found', 'mnt', 'media', 'cdrom'
+    )
+}
 
 $resolvedPaths = [System.Collections.Generic.List[string]]::new()
 foreach ($root in $Path) {
     $rootItem = Get-Item -LiteralPath $root -ErrorAction SilentlyContinue
     if (-not $rootItem) { Write-Warning "Path not found, skipping: $root"; continue }
 
-    # If the user passed a drive root (e.g. C:\), expand to its immediate subdirectories
-    # so we can exclude OS folders and show the user exactly what will be scanned
-    if ($rootItem.FullName -match '^[A-Za-z]:\\?$') {
+    # If the user passed a filesystem root (C:\ on Windows, / on Unix), expand to subdirectories
+    $isRoot = if ($IsWindows) { $rootItem.FullName -match '^[A-Za-z]:\\?$' } else { $rootItem.FullName -eq '/' }
+    if ($isRoot) {
         Get-ChildItem -LiteralPath $rootItem.FullName -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -notin $excludedTopLevel -and $_.Name -notmatch '^\$' } |
+        Where-Object { $_.Name -notin $excludedTopLevel -and $_.Name -notmatch '^\$' -and $_.Name -notmatch '^\.' } |
         ForEach-Object { $resolvedPaths.Add($_.FullName) }
     } else {
         $resolvedPaths.Add($rootItem.FullName)
@@ -135,7 +149,7 @@ if (-not $NoSubmit) {
 }
 
 $null = New-Item -ItemType Directory -Path $OutputPath -Force
-$hn   = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'unknown' }
+$hn   = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } elseif (Get-Command hostname -ErrorAction SilentlyContinue) { (hostname).Trim() } else { 'unknown' }
 $ts   = Get-Date -Format 'yyyyMMdd-HHmmss'
 $log  = Join-Path $OutputPath "RatCatcher-${hn}-${ts}.log"
 
@@ -191,7 +205,8 @@ Write-Log "[5/10] Searching for dropped RAT payloads in temp/appdata..."
 $droppedPayloads = @(Search-DroppedPayloads -AttackWindowStart $attackWindow)
 
 # ── Check 6: Persistence ──────────────────────────────────────────────────────
-Write-Log "[6/10] Checking persistence mechanisms (tasks, registry, startup)..."
+$persistLabel = if ($IsWindows) { 'tasks, registry, startup' } elseif ($IsMacOS) { 'launchagents, cron' } else { 'systemd, cron, autostart' }
+Write-Log "[6/10] Checking persistence mechanisms ($persistLabel)..."
 $persistenceArtifacts = @(Find-PersistenceArtifacts -AttackWindowStart $attackWindow)
 
 # ── Check 7: XOR-encoded indicators ──────────────────────────────────────────
@@ -308,10 +323,15 @@ if ($vulnCount -gt 0 -or $criticalCount -gt 0) {
 
 Write-Log ''
 Write-Log '═══════════════════════════════════════'
-Write-Log ' SECURITY REMINDER'
-Write-Log ' If you changed your ExecutionPolicy to run this scan,'
-Write-Log ' restore it now by closing this window or running:'
-Write-Log '   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Restricted'
+if ($IsWindows) {
+    Write-Log ' SECURITY REMINDER'
+    Write-Log ' If you changed your ExecutionPolicy to run this scan,'
+    Write-Log ' restore it now by closing this window or running:'
+    Write-Log '   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Restricted'
+} else {
+    Write-Log ' SCAN COMPLETE'
+    Write-Log " Platform: $(if ($IsMacOS) {'macOS'} else {'Linux'})"
+}
 Write-Log '═══════════════════════════════════════'
 
 if ($vulnCount -gt 0 -or $criticalCount -gt 0) { exit 1 } else { exit 0 }

@@ -21,7 +21,7 @@ export async function handleSubmissions(request, env) {
     if (filterVerdict) { conditions.push('verdict = ?'); binds.push(filterVerdict) }
     if (search) { conditions.push('(hostname LIKE ? OR username LIKE ?)'); binds.push('%'+search+'%', '%'+search+'%') }
     if (positive === '1') {
-      conditions.push("(ai_verdict = 'AI_COMPROMISE' OR (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id AND is_threat = 1) > 0)")
+      conditions.push("(ai_verdict = 'AI_COMPROMISE' OR (ai_verdict IS NULL AND (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id AND is_threat = 1) > 0))")
     } else if (filterReviewed === 'unreviewed') {
       conditions.push("verdict = 'COMPROMISED' AND (ai_verdict IS NULL OR ai_verdict = 'AI_PENDING' OR ai_verdict = 'AI_PARTIAL') AND (findings_count IS NULL OR findings_count = 0 OR (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id) < findings_count)")
     } else if (filterReviewed === 'remediated') {
@@ -42,7 +42,7 @@ export async function handleSubmissions(request, env) {
         CASE WHEN s.submitted_at = latest.max_at THEN 1 ELSE 0 END AS is_latest,
         COALESCE(ac.ack_count, 0) AS ack_count,
         COALESCE(tc.threat_count, 0) AS threat_count,
-        CASE WHEN s.ai_verdict = 'AI_COMPROMISE' THEN 1 ELSE 0 END AS positive,
+        CASE WHEN s.ai_verdict = 'AI_COMPROMISE' OR (s.ai_verdict IS NULL AND COALESCE(tc.threat_count, 0) > 0) THEN 1 ELSE 0 END AS positive,
         CASE WHEN s.ai_verdict = 'AI_FALSE_POSITIVE'
                OR (COALESCE(tc.threat_count, 0) = 0 AND s.findings_count > 0 AND COALESCE(ac.ack_count, 0) >= s.findings_count)
              THEN 1 ELSE 0 END AS reviewed,
@@ -84,12 +84,13 @@ export async function handleStats(request, env) {
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN verdict = 'CLEAN' THEN 1 ELSE 0 END) AS clean,
-        SUM(CASE WHEN ai_verdict = 'AI_COMPROMISE' OR COALESCE(tc.threat_count, 0) > 0 THEN 1 ELSE 0 END) AS positive,
+        SUM(CASE WHEN ai_verdict = 'AI_COMPROMISE' OR (ai_verdict IS NULL AND COALESCE(tc.threat_count, 0) > 0) THEN 1 ELSE 0 END) AS positive,
         SUM(CASE WHEN verdict = 'COMPROMISED'
-                   AND COALESCE(tc.threat_count, 0) = 0
                    AND (ai_verdict = 'AI_FALSE_POSITIVE'
-                        OR (s.findings_count > 0
+                        OR (COALESCE(tc.threat_count, 0) = 0
+                            AND s.findings_count > 0
                             AND COALESCE(ac.ack_count, 0) >= s.findings_count))
+                   AND ai_verdict != 'AI_COMPROMISE'
                  THEN 1 ELSE 0 END) AS reviewed,
         SUM(CASE WHEN verdict = 'COMPROMISED'
               AND (ai_verdict IS NULL OR ai_verdict = 'AI_PENDING' OR ai_verdict = 'AI_PARTIAL')

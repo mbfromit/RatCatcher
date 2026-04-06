@@ -90,6 +90,12 @@ foreach ($root in $Path) {
     }
 }
 
+# Exclude RatCatcher's own directory to prevent false positives from IOC strings in source code
+$scannerDir = (Resolve-Path $PSScriptRoot).Path
+$resolvedPaths = [System.Collections.Generic.List[string]]@(
+    $resolvedPaths | Where-Object { -not $_.StartsWith($scannerDir) }
+)
+
 # ── Confirmation prompt ────────────────────────────────────────────────────────
 Write-Host ''
 Write-Host '================================================================'
@@ -149,7 +155,7 @@ Write-Log "Scanning paths: $($resolvedPaths -join ', ')"
 
 # ── Check 1: Discover Node.js projects ────────────────────────────────────────
 Write-Log "[1/10] Discovering Node.js projects..."
-$projects = @(Get-NodeProjects -Path $resolvedPaths)
+$projects = @(Get-NodeProjects -Path $resolvedPaths -ExcludeDir $scannerDir)
 Write-Log "Found $($projects.Count) project(s)"
 
 # ── Checks 2 & 3: Lockfile analysis + artifact detection (parallel on PS7) ───

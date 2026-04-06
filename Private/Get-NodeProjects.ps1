@@ -2,7 +2,8 @@ function Get-NodeProjects {
     [CmdletBinding()]
     param(
         [string[]]$Path           = @('C:\Users', 'C:\Dev', 'C:\Projects'),
-        [string[]]$ExcludePattern = @('[/\\][Tt]ests[/\\][Ff]ixtures[/\\]', '[/\\]tests[/\\]fixtures[/\\]')
+        [string[]]$ExcludePattern = @('[/\\][Tt]ests[/\\][Ff]ixtures[/\\]', '[/\\]tests[/\\]fixtures[/\\]'),
+        [string]$ExcludeDir       = ''
     )
     $results = [System.Collections.Generic.List[PSCustomObject]]::new()
     foreach ($rootPath in $Path) {
@@ -14,6 +15,7 @@ function Get-NodeProjects {
                 if ($fn -match '[/\\]node_modules[/\\]') { return $false }
                 if ($fn -match '[/\\]\.(git|svn|hg|vs|idea|vscode)[/\\]') { return $false }
                 if ($fn -match '[/\\](bin|obj|dist|build|out|coverage|__pycache__)[/\\]') { return $false }
+                if ($ExcludeDir -and $fn.StartsWith($ExcludeDir)) { return $false }
                 if ($ExcludePattern) {
                     foreach ($pat in $ExcludePattern) { if ($fn -match $pat) { return $false } }
                 }

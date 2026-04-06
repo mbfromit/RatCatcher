@@ -141,7 +141,7 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
 .legend-btn:hover{border-color:#58a6ff;background:rgba(88,166,255,.08)}
 .legend-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10001;align-items:center;justify-content:center}
 .legend-overlay.open{display:flex}
-.legend-modal{background:#0d1117;border:1px solid #21303f;border-radius:8px;padding:32px 36px;width:620px;max-width:94vw;max-height:85vh;overflow-y:auto;font-family:monospace;color:#c9d1d9;line-height:1.7}
+.legend-modal{background:#0d1117;border:1px solid #21303f;border-radius:8px;padding:32px 36px;width:620px;max-width:94vw;max-height:85vh;overflow-y:auto;font-family:monospace;color:#c9d1d9;line-height:1.7;position:relative}
 .legend-modal h2{color:#58a6ff;font-size:16px;letter-spacing:2px;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid #21262d}
 .legend-row{display:flex;align-items:flex-start;gap:14px;padding:10px 0;border-bottom:1px solid #161b22}
 .legend-row:last-child{border-bottom:none}
@@ -149,6 +149,8 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
 .legend-desc{font-size:11px;color:#8b949e;line-height:1.6}
 .legend-close{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:10px 24px;font-family:monospace;font-size:12px;border-radius:4px;cursor:pointer;margin-top:20px;display:block}
 .legend-close:hover{background:#30363d;border-color:#484f58}
+.modal-x{position:absolute;top:16px;right:20px;background:none;border:none;color:#484f58;font-size:22px;cursor:pointer;font-family:monospace;line-height:1;padding:4px 8px}
+.modal-x:hover{color:#c9d1d9}
 .vrd-help{color:#58a6ff;cursor:pointer;font-size:0.72rem;margin-left:4px;text-decoration:none}
 .vrd-help:hover{text-decoration:underline}
 .v2-banner{background:linear-gradient(90deg,#1f6feb 0%,#388bfd 100%);border:none;border-radius:6px;padding:12px 20px;margin-bottom:20px;cursor:pointer;display:flex;align-items:center;gap:14px;width:100%;text-align:left;font-family:monospace}
@@ -162,7 +164,7 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
 .v2-mini:hover{border-color:#58a6ff;background:rgba(88,166,255,.08)}
 .wn-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10001;align-items:center;justify-content:center}
 .wn-overlay.open{display:flex}
-.wn-modal{background:#0d1117;border:1px solid #21303f;border-radius:8px;padding:32px 36px;width:720px;max-width:94vw;max-height:85vh;overflow-y:auto;font-family:monospace;color:#c9d1d9;line-height:1.7}
+.wn-modal{background:#0d1117;border:1px solid #21303f;border-radius:8px;padding:32px 36px;width:720px;max-width:94vw;max-height:85vh;overflow-y:auto;font-family:monospace;color:#c9d1d9;line-height:1.7;position:relative}
 .wn-modal h2{color:#58a6ff;font-size:16px;letter-spacing:2px;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid #21262d}
 .wn-modal h3{color:#58a6ff;font-size:13px;letter-spacing:1px;margin-top:24px;margin-bottom:10px}
 .wn-modal p{font-size:12px;margin-bottom:10px}
@@ -236,6 +238,7 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
     <span class="v2-dismiss" onclick="event.stopPropagation();dismissBanner()">Got it</span>
   </button>
   <button class="v2-mini" id="v2mini" onclick="openWhatsNew()">&#9432; What's New in v2.0</button>
+  <button class="legend-btn" onclick="openWorkflow()">&#9432; Manager Workflow</button>
   <button class="legend-btn" onclick="openLegend()">&#9432; Status Legend</button>
   <div class="stats">
     <div class="stat selected" id="f-all"><div class="lbl">Total Scans</div><div class="val" id="s-total">-</div></div>
@@ -289,6 +292,7 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
 
 <div class="legend-overlay" id="legend-overlay">
   <div class="legend-modal">
+    <button class="modal-x" onclick="document.getElementById('legend-overlay').classList.remove('open')">&times;</button>
     <h2>STATUS LEGEND</h2>
     <p style="color:#58a6ff;font-size:12px;margin-bottom:16px;border-bottom:1px solid #21262d;padding-bottom:10px">Dashboard Filter Cards</p>
     <div class="legend-row"><span class="legend-badge" style="color:#e0e0e0">Total Scans</span><span class="legend-desc">All scans submitted to the dashboard. Click to clear all filters and show everything.</span></div>
@@ -312,8 +316,83 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
     <button class="legend-close" onclick="document.getElementById('legend-overlay').classList.remove('open')">Close</button>
   </div>
 </div>
+<div class="wn-overlay" id="wf-overlay">
+  <div class="wn-modal">
+    <button class="modal-x" onclick="document.getElementById('wf-overlay').classList.remove('open')">&times;</button>
+    <h2>MANAGER WORKFLOW</h2>
+    <p class="wn-dim">RatCatcher 2.0 - Updated Manager Workflow</p>
+
+    <h3>How It Works Now</h3>
+    <p>When an employee runs the RatCatcher scanner, the results are automatically submitted to the dashboard AND evaluated by AI. By the time you log in, the AI has already analysed every finding.</p>
+
+    <h3>Your Daily Workflow</h3>
+    <p><b class="wn-blue">Step 1: Log in and check the dashboard</b></p>
+    <p>Look at the filter cards at the top. Focus on two:</p>
+    <ul>
+      <li><b class="wn-red">Positive Findings</b> - These need your immediate attention. AI has confirmed a real threat.</li>
+      <li><b style="color:#f0883e">Unreviewed</b> - These are rare. AI failed to evaluate (server issue). Should normally be 0.</li>
+    </ul>
+    <p>If both are 0, you're done. All scans are clean or have been cleared by AI.</p>
+
+    <p><b class="wn-blue">Step 2: Review Positive Findings</b></p>
+    <p>Click the <b class="wn-red">Positive Findings</b> card. For each submission:</p>
+    <ul>
+      <li>Click <b class="wn-red">Review &amp; Certify</b> to open the Technical Report.</li>
+      <li>Review each finding - the AI verdict is shown inline (red = confirmed threat, green = false positive) with the AI's reasoning.</li>
+      <li>Choose one of two actions:</li>
+    </ul>
+    <table>
+      <tr><th>If the threat is real...</th><th>If it's a false positive...</th></tr>
+      <tr><td>Leave the AI verdict as-is</td><td>Click <b style="color:#d4c222">Mark as False Positive</b> (yellow button)</td></tr>
+      <tr><td>Click <b class="wn-red">Sign &amp; Certify</b> (red button)</td><td>Enter your name</td></tr>
+      <tr><td>Enter your name</td><td>The submission moves to Reviewed</td></tr>
+    </table>
+
+    <h3>What You Are Certifying</h3>
+    <div class="wn-highlight">When you click <b>Sign &amp; Certify</b>, you are certifying that:
+    <ul style="margin-top:8px">
+      <li>You have reviewed the AI's findings for this submission.</li>
+      <li>You have communicated the results to the employee and their direct manager.</li>
+      <li>The employee has been instructed on next steps (disconnect, remediate, or continue as normal).</li>
+    </ul>
+    <p style="margin-top:10px">That's it. You are not making a technical determination about the malware. The AI has already done that. You are certifying that you reviewed the results and notified the right people.</p>
+    <p style="margin-top:8px"><b class="wn-blue">Tip:</b> Use the <b>Org Chart</b> feature in Microsoft Teams to quickly identify the employee's direct manager if you are unsure who to notify.</p></div>
+
+    <p><b class="wn-blue">Step 3: Check Remediated (optional)</b></p>
+    <p>Click the <b class="wn-blue">Remediated</b> card (blue) to see machines that were previously compromised but have since scanned clean. Click any hostname to see the full scan history for that machine.</p>
+
+    <h3>What Changed from v1</h3>
+    <table>
+      <tr><th>Before (v1)</th><th>Now (v2)</th></tr>
+      <tr><td>Open Technical Report</td><td>Same</td></tr>
+      <tr><td>Copy each finding manually</td><td>AI evaluates automatically on submission</td></tr>
+      <tr><td>Paste into O365 Copilot Agent</td><td>Not needed (but still works if you prefer)</td></tr>
+      <tr><td>Read Copilot's response</td><td>Read AI verdict inline on each finding</td></tr>
+      <tr><td>Click Acknowledge or Confirm Threat</td><td>Click Sign &amp; Certify or Mark as False Positive</td></tr>
+      <tr><td>Type your own reason</td><td>AI provides the reasoning</td></tr>
+      <tr><td>No accountability tracking</td><td>Manager name recorded with certification</td></tr>
+    </table>
+
+    <h3>The Copilot Agent</h3>
+    <p>You can still use the O365 Copilot RatCatcher Agent exactly as described in the original How-To guide. It has not been removed or changed. Use it as a second opinion if you want to verify the AI's assessment.</p>
+
+    <h3>Quick Reference</h3>
+    <table>
+      <tr><th>Card</th><th>What it means</th><th>Action needed</th></tr>
+      <tr><td class="wn-green">Clean</td><td>No findings</td><td>None</td></tr>
+      <tr><td style="color:#d4c222">Reviewed</td><td>AI cleared all findings as false positives</td><td>None</td></tr>
+      <tr><td class="wn-red">Positive Findings</td><td>AI confirmed a real threat</td><td>Review &amp; Certify or Mark as False Positive</td></tr>
+      <tr><td style="color:#f0883e">Unreviewed</td><td>AI evaluation failed</td><td>Should be 0. Contact DevOps if not.</td></tr>
+      <tr><td class="wn-blue">Remediated</td><td>Was compromised, now clean</td><td>Informational only</td></tr>
+    </table>
+
+    <p class="wn-dim">Questions? Contact the DevOps team.</p>
+    <button class="wn-close" onclick="document.getElementById('wf-overlay').classList.remove('open')">Close</button>
+  </div>
+</div>
 <div class="wn-overlay" id="wn-overlay">
   <div class="wn-modal">
+    <button class="modal-x" onclick="document.getElementById('wn-overlay').classList.remove('open')">&times;</button>
     <h2>RATCATCHER 2.0 - WHAT'S NEW</h2>
     <p class="wn-dim">For All Managers and Security Reviewers</p>
 
@@ -804,6 +883,7 @@ document.getElementById('cert-save').addEventListener('click',async function(){
   }
 });
 function openLegend(){document.getElementById('legend-overlay').classList.add('open')}
+function openWorkflow(){document.getElementById('wf-overlay').classList.add('open')}
 function openWhatsNew(){document.getElementById('wn-overlay').classList.add('open')}
 function dismissBanner(){
   document.getElementById('v2banner').style.display='none';

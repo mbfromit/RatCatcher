@@ -662,13 +662,38 @@ function _rcViewFull(){
   var bar=document.createElement('div');
   bar.className=isCertified?'rc-cert-bar certified':'rc-cert-bar';
   if(isCertified){
-    bar.innerHTML='<span class="rc-cert-icon">&#10003;</span><div class="rc-cert-info"><div class="rc-cert-title">MANAGER CERTIFIED</div><div class="rc-cert-desc">Certified by <b>${safeBy}</b> on ${safeAt}</div></div>';
+    bar.innerHTML='<span class="rc-cert-icon">&#10003;</span><div class="rc-cert-info"><div class="rc-cert-title">MANAGER CERTIFIED</div><div class="rc-cert-desc">Certified by <b>${safeBy}</b> on ${safeAt}</div></div><button id="rc-override-btn" style="background:none;border:1px solid #d4c222;color:#d4c222;padding:6px 16px;font-family:monospace;font-size:11px;border-radius:4px;cursor:pointer;white-space:nowrap;margin-left:auto">Mark as False Positive</button>';
   } else {
-    bar.innerHTML='<span class="rc-cert-icon">&#9888;</span><div class="rc-cert-info"><div class="rc-cert-title">AI VERIFIED COMPROMISE - AWAITING MANAGER CERTIFICATION</div><div class="rc-cert-desc">Review all findings and AI verdicts below, then certify that you have reviewed this compromise and notified the affected employee to disconnect.</div></div><button class="rc-cert-sign" id="rc-cert-sign">Sign &amp; Certify</button>';
+    bar.innerHTML='<span class="rc-cert-icon">&#9888;</span><div class="rc-cert-info"><div class="rc-cert-title">AI VERIFIED COMPROMISE - AWAITING MANAGER CERTIFICATION</div><div class="rc-cert-desc">Review all findings and AI verdicts below, then certify that you have reviewed this compromise and notified the affected employee to disconnect.</div></div><div style="display:flex;flex-direction:column;gap:6px"><button class="rc-cert-sign" id="rc-cert-sign">Sign &amp; Certify</button><button id="rc-override-btn" style="background:none;border:1px solid #d4c222;color:#d4c222;padding:6px 16px;font-family:monospace;font-size:11px;border-radius:4px;cursor:pointer;white-space:nowrap">Mark as False Positive</button></div>';
   }
   var sticky=document.querySelector('[style*="position:sticky"]');
   if(sticky&&sticky.nextSibling)sticky.parentNode.insertBefore(bar,sticky.nextSibling);
   else document.body.insertBefore(bar,document.body.firstChild);
+  // Override modal (available for both certified and uncertified)
+  var ovr=document.createElement('div');ovr.className='rc-cert-overlay';
+    ovr.innerHTML='<div class="rc-cert-modal"><h3 style="color:#3fb950">OVERRIDE AI VERDICT</h3><p>You are overriding the AI verdict from Compromise to False Positive. Explain why this finding is not a real threat.</p><textarea id="rc-ovr-reason" style="width:100%;background:#06090f;border:1px solid #21303f;color:#c9d1d9;font-family:monospace;font-size:12px;padding:10px;border-radius:4px;min-height:80px;resize:vertical" placeholder="e.g. C2 indicator found in RatCatcher source code, not actual malware"></textarea><input type="text" id="rc-ovr-name" placeholder="Enter your first and last name" style="margin-top:10px"><div class="rc-cert-err" id="rc-ovr-err"></div><div class="rc-cert-btns"><button class="rc-cert-cancel" id="rc-ovr-cancel">Cancel</button><button class="rc-cert-submit" id="rc-ovr-submit" style="background:#238636;border-color:#2ea043">Mark as False Positive</button></div></div>';
+    document.body.appendChild(ovr);
+    document.getElementById('rc-override-btn').addEventListener('click',function(){ovr.classList.add('open');setTimeout(function(){document.getElementById('rc-ovr-reason').focus()},50)});
+    ovr.addEventListener('click',function(e){if(e.target===ovr)ovr.classList.remove('open')});
+    document.getElementById('rc-ovr-cancel').addEventListener('click',function(){ovr.classList.remove('open')});
+    document.getElementById('rc-ovr-submit').addEventListener('click',async function(){
+      var reason=document.getElementById('rc-ovr-reason').value.trim();
+      var name=document.getElementById('rc-ovr-name').value.trim();
+      if(!reason){document.getElementById('rc-ovr-err').textContent='Reason is required.';return;}
+      if(!name||name.indexOf(' ')===-1){document.getElementById('rc-ovr-err').textContent='Please enter first and last name.';return;}
+      this.disabled=true;this.textContent='Saving...';
+      try{
+        var r=await fetch(B+'/api/submissions/'+SUB+'/override-verdict',{method:'POST',headers:{'X-Admin-Password':PW,'Content-Type':'application/json'},body:JSON.stringify({ai_verdict:'AI_FALSE_POSITIVE',reason:reason,manager_name:name})});
+        var d=await r.json();
+        this.disabled=false;this.textContent='Mark as False Positive';
+        if(!r.ok){document.getElementById('rc-ovr-err').textContent=d.error||'Override failed.';return;}
+        ovr.classList.remove('open');
+        bar.className='rc-cert-bar certified';
+        bar.innerHTML='<span class="rc-cert-icon">&#10003;</span><div class="rc-cert-info"><div class="rc-cert-title" style="color:#3fb950">OVERRIDDEN - FALSE POSITIVE</div><div class="rc-cert-desc">Marked as false positive by <b>'+name.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</b>: '+reason.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div></div>';
+        try{if(window.opener&&window.opener.refresh)window.opener.refresh()}catch(e2){}
+        setTimeout(function(){window.close()},1000);
+      }catch(e){this.disabled=false;this.textContent='Mark as False Positive';document.getElementById('rc-ovr-err').textContent='Network error.';}
+    });
   if(!isCertified){
     var ov=document.createElement('div');ov.className='rc-cert-overlay';
     ov.innerHTML='<div class="rc-cert-modal"><h3>MANAGER CERTIFICATION</h3><p>I certify that I have reviewed this AI-verified compromise, communicated with the affected employee, and instructed them to disconnect.</p><input type="text" id="rc-cert-name" placeholder="Enter your first and last name"><div class="rc-cert-err" id="rc-cert-err"></div><div class="rc-cert-btns"><button class="rc-cert-cancel" id="rc-cert-cancel">Cancel</button><button class="rc-cert-submit" id="rc-cert-submit">Certify Verified</button></div></div>';

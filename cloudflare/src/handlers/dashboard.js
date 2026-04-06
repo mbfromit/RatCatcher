@@ -307,6 +307,8 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
     <p style="color:#58a6ff;font-size:12px;margin:20px 0 16px;border-bottom:1px solid #21262d;padding-bottom:10px">Manager Certification (Positive Findings only)</p>
     <div class="legend-row"><span class="legend-badge" style="color:#e8a838">Awaiting Manager Review</span><span class="legend-desc">AI confirmed a compromise. A manager must open the Technical Report, review findings, and Sign &amp; Certify.</span></div>
     <div class="legend-row"><span class="legend-badge" style="color:#3fb950">Certified by [Name]</span><span class="legend-desc">Manager reviewed the compromise, contacted the employee, and certified with their name. Audit trail recorded.</span></div>
+    <p style="color:#58a6ff;font-size:12px;margin:20px 0 16px;border-bottom:1px solid #21262d;padding-bottom:10px">Override AI Verdict</p>
+    <div class="legend-row"><span class="legend-badge" style="color:#d4c222">Mark as False Positive</span><span class="legend-desc">Available in the Technical Report when AI has flagged a compromise incorrectly. A manager can override the AI verdict, providing their name and a reason. The submission moves from Positive Findings to Reviewed. The override reason is recorded for audit.</span></div>
     <button class="legend-close" onclick="document.getElementById('legend-overlay').classList.remove('open')">Close</button>
   </div>
 </div>
@@ -345,6 +347,15 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
       <li><b class="wn-green">AI: FALSE POSITIVE</b> - Finding is normal system activity, with the AI's reasoning.</li>
     </ul>
     <p>The Acknowledge Finding and Confirm Threat buttons still work exactly as before - use them to record your final decision after reviewing the AI's assessment.</p>
+
+    <h3>Override AI Verdict (New)</h3>
+    <p>If AI incorrectly flags a submission as a compromise (false positive), you can override the verdict:</p>
+    <ul>
+      <li>Open the Technical Report for the flagged submission.</li>
+      <li>Click the <b style="color:#d4c222">Mark as False Positive</b> button (available on both certified and uncertified reports).</li>
+      <li>Enter a reason explaining why this is not a real threat and your first and last name.</li>
+      <li>The submission moves from Positive Findings to Reviewed and the override is recorded for audit.</li>
+    </ul>
 
     <h3>Simplified Dashboard</h3>
     <p>The dashboard now has <b>6 filter cards</b>: Total, Clean, Reviewed, Positive Findings, Unreviewed, and Remediated. Click any hostname to see all scans for that machine. Click any card to filter.</p>

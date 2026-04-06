@@ -1,7 +1,7 @@
 import { handleSubmit }                                    from './handlers/submit.js'
 import { handleSubmissions, handleStats, handleReport, handleDeleteSubmission, handleExport, handleUserSubmissions } from './handlers/api.js'
 import { handleDashboard }                                 from './handlers/dashboard.js'
-import { handleGetAcks, handlePostAck, handleDeleteAck, handleUpdateFindingsCount, handleCertify } from './handlers/ack.js'
+import { handleGetAcks, handlePostAck, handleDeleteAck, handleUpdateFindingsCount, handleCertify, handleOverrideVerdict } from './handlers/ack.js'
 import { handleAiVerify, handleGetAiVerdicts, handleAiVerifyAll, handleAiStatus, handleAiWarmup } from './handlers/ai-verify.js'
 import { handleUserReport }                                from './handlers/userReport.js'
 
@@ -48,6 +48,11 @@ export default {
     const certifyMatch = rel.match(/^\/api\/submissions\/([^/]+)\/certify$/)
     if (certifyMatch && method === 'POST') {
       return handleCertify(request, env, certifyMatch[1])
+    }
+
+    const overrideMatch = rel.match(/^\/api\/submissions\/([^/]+)\/override-verdict$/)
+    if (overrideMatch && method === 'POST') {
+      return handleOverrideVerdict(request, env, overrideMatch[1])
     }
 
     const aiVerifyMatch = rel.match(/^\/api\/submissions\/([^/]+)\/ai-verify$/)

@@ -12,6 +12,7 @@ You can read more about the attack here: https://thehackernews.com/2026/03/axios
 
 - **Automatic AI Evaluation** - Every scan is automatically analysed by Gemma 4 AI. No manual steps needed - by the time you open the dashboard, the AI has already determined what is a real threat and what is a false positive.
 - **Manager Certification** - When AI confirms a compromise, a manager must review the findings and certify with their name before the case is closed. Creates an audit trail.
+- **Override AI Verdict** - If AI incorrectly flags a submission as compromised, managers can mark it as a false positive from the Technical Report with a reason and their name for audit.
 - **AI Verdicts in Reports** - Technical Reports show AI assessments inline on each finding with colour-coded verdicts and reasoning.
 - **Updated Threat Intelligence** - AI uses the latest IOCs from Elastic Security Labs, Unit42, Microsoft, and Google Threat Intelligence, including the confirmed North Korean state actor attribution.
 - **Remediation Tracking** - Machines that were previously compromised but scanned clean are flagged as Remediated. Click any hostname to see full scan history.

@@ -107,3 +107,33 @@ export async function handleCertify(request, env, submissionId) {
     return json({ error: 'Database error' }, 500)
   }
 }
+
+export async function handleOverrideVerdict(request, env, submissionId) {
+  if (!checkAdminPassword(request, env)) return json({ error: 'Unauthorized' }, 401)
+
+  let body
+  try { body = await request.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
+
+  const verdict = body?.ai_verdict
+  const reason = (body?.reason || '').trim()
+  const name = (body?.manager_name || '').trim()
+
+  if (!verdict || !['AI_FALSE_POSITIVE', 'AI_COMPROMISE'].includes(verdict)) {
+    return json({ error: 'Invalid verdict' }, 400)
+  }
+  if (!reason) return json({ error: 'Reason is required' }, 400)
+  if (!name || name.indexOf(' ') === -1) return json({ error: 'Manager first and last name required' }, 400)
+
+  try {
+    const row = await env.DB.prepare('SELECT id FROM submissions WHERE id = ?')
+      .bind(submissionId).first()
+    if (!row) return json({ error: 'Submission not found' }, 404)
+
+    await env.DB.prepare('UPDATE submissions SET ai_verdict = ?, certified_by = ?, certified_at = ? WHERE id = ?')
+      .bind(verdict, name + ' (override: ' + reason + ')', new Date().toISOString(), submissionId).run()
+
+    return json({ ok: true, ai_verdict: verdict })
+  } catch {
+    return json({ error: 'Database error' }, 500)
+  }
+}

@@ -36,6 +36,17 @@ This creates an audit trail linking every confirmed threat to the manager who re
 
 ---
 
+## Override AI Verdict
+
+If AI incorrectly flags a submission as compromised (false positive), you can override the verdict:
+
+1. Open the Technical Report for the flagged submission.
+2. Click the **Mark as False Positive** button (available on both certified and uncertified reports).
+3. Enter a reason explaining why this is not a real threat and your first and last name.
+4. The submission moves from Positive Findings to Reviewed and the override is recorded for audit.
+
+---
+
 ## AI Verdicts in Technical Reports
 
 When you open a Technical Report, each finding now shows the AI's assessment directly:

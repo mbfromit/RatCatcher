@@ -1,12 +1,18 @@
-# RatCatcher 2.0
+# RatCatcher 2.1
 
 ![RatCatcher 2.0](RatCatcher2.png)
 
-An **AI-powered** PowerShell forensic scanner for detecting evidence of the **March 31, 2026 Axios NPM supply chain attack**, which distributed a malicious `plain-crypto-js` dependency via compromised versions of the `axios` package (v1.14.1 and v0.30.4). RatCatcher runs ten checks covering the full compromise kill chain, produces detailed reports, and **automatically evaluates every finding using Gemma 4 AI** to distinguish real threats from false positives.
+An **AI-powered, cross-platform** PowerShell forensic scanner for detecting evidence of the **March 31, 2026 Axios NPM supply chain attack**, which distributed a malicious `plain-crypto-js` dependency via compromised versions of the `axios` package (v1.14.1 and v0.30.4). RatCatcher runs ten checks covering the full compromise kill chain, produces detailed reports, and **automatically evaluates every finding using Gemma 4 AI** to distinguish real threats from false positives.
+
+**Supported Platforms:** Windows, macOS, and Linux.
 
 You can read more about the attack here: https://thehackernews.com/2026/03/axios-supply-chain-attack-pushes-cross.html
 
 ---
+
+## What's New in v2.1
+
+- **Cross-Platform Support** - RatCatcher now runs on **Windows, macOS, and Linux**. The scanner auto-detects the platform and uses OS-specific checks for dropped payloads, persistence mechanisms, network evidence, and credential locations. Requires PowerShell 7.0+.
 
 ## What's New in v2.0
 
@@ -28,8 +34,17 @@ NOTE: It is recommended that you stop and save all work before running. This sca
 
 ### Prerequisites
 
-- **Windows** (PowerShell 5.1 minimum; **PowerShell 7+ strongly recommended** for parallel processing — see [Performance](#performance) below)
+- **PowerShell 7.0+** (required for cross-platform support)
 - No additional modules required
+
+**Installing PowerShell 7:**
+
+| Platform | Command |
+|----------|---------|
+| Windows | `winget install Microsoft.PowerShell` |
+| macOS | `brew install powershell` |
+| CentOS/RHEL | `sudo dnf install powershell` (after adding Microsoft repo) |
+| Ubuntu/Debian | `sudo apt install powershell` (after adding Microsoft repo) |
 
 ### Option 1 — Clone with Git
 
@@ -45,9 +60,9 @@ cd RatCatcher
 3. Extract the ZIP to a folder of your choice (e.g. `C:\Tools\RatCatcher`)
 4. Open PowerShell and `cd` into that folder
 
-### Allow the Script to Run
+### Allow the Script to Run (Windows only)
 
-If you haven't run unsigned PowerShell scripts before, you may need to adjust the execution policy for your session:
+If you haven't run unsigned PowerShell scripts before on Windows, you may need to adjust the execution policy for your session:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
@@ -61,22 +76,35 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 >
 > Leaving the execution policy on Bypass allows any script to run without warning, which is a security risk.
 
+On **macOS** and **Linux**, execution policy is not required. Simply run with `pwsh`.
+
 ---
 
 ## Running the Scanner
 
-### Basic scan (defaults to all of C:\, skips OS folders)
+### Basic scan (defaults to C:\ on Windows, / on macOS/Linux — skips OS folders)
 
 ```powershell
+# Windows
 .\Invoke-RatCatcher.ps1
+
+# macOS / Linux
+pwsh ./Invoke-RatCatcher.ps1
 ```
 
-The script will display the exact folders it intends to scan and ask for confirmation before starting.
+The script auto-detects the platform and displays which folders will be scanned.
 
 ### Scan a specific folder
 
 ```powershell
+# Windows
 .\Invoke-RatCatcher.ps1 -Path C:\Dev
+
+# macOS
+pwsh ./Invoke-RatCatcher.ps1 -Path ~/Projects
+
+# Linux
+pwsh ./Invoke-RatCatcher.ps1 -Path /home/user
 ```
 
 ### Scan multiple folders
@@ -95,7 +123,7 @@ The script will display the exact folders it intends to scan and ask for confirm
 
 Before the scan begins, you will be prompted to enter a **submission password**. This password is required — the scan will not run without it. Contact your **manager** or the **DevOps team** to obtain the password.
 
-Reports are always saved locally to `C:\Logs` (or `-OutputPath`).
+Reports are always saved locally to `C:\Logs` on Windows or `/tmp` on macOS/Linux (or `-OutputPath`).
 
 ---
 
@@ -158,14 +186,23 @@ Inspects two locations that persist evidence even after `npm uninstall`:
 
 ### Check 5 — Dropped Payload Search
 
-The malicious `plain-crypto-js` setup script drops a Remote Access Trojan (RAT) to disk during `npm install`. This check scans `%TEMP%`, `%TMP%`, `%LOCALAPPDATA%`, and `%APPDATA%` for files created **after the attack window start (2026-03-31 00:21 UTC)** that match dropper behavior:
+The malicious `plain-crypto-js` setup script drops a platform-specific RAT to disk during `npm install`. This check scans temp and cache directories for files created **after the attack window start (2026-03-31 00:21 UTC)** that match dropper behavior:
 
-- **Executables and DLLs** — reads the first two bytes of every file and flags any with a PE/MZ header (`0x4D 0x5A`), regardless of file extension (severity: Critical)
-- **Suspicious scripts** — flags `.ps1`, `.vbs`, `.bat`, and `.cmd` files created in temp locations after the attack window (severity: High)
+| Platform | Scan Paths | Binary Detection | Known RAT Artifact |
+|----------|-----------|-----------------|-------------------|
+| Windows | `%TEMP%`, `%APPDATA%` | PE/MZ header (0x4D 0x5A) | `%PROGRAMDATA%\wt.exe` |
+| macOS | `/tmp`, `~/Library/Caches` | Mach-O header (0xCF 0xFA) | `/Library/Caches/com.apple.act.mond` |
+| Linux | `/tmp`, `/var/tmp`, `~/.cache` | ELF header (0x7F 0x45) | `/tmp/ld.py` |
 
 ### Check 6 — Persistence Mechanisms
 
-If the RAT was executed, it will have attempted to establish persistence. This check examines three Windows persistence locations for artifacts created after the attack window or bearing suspicious characteristics:
+If the RAT was executed, it will have attempted to establish persistence. This check examines platform-specific persistence locations for artifacts created after the attack window:
+
+| Platform | Locations Checked |
+|----------|------------------|
+| Windows | Scheduled Tasks, Registry Run keys (HKCU/HKLM), Startup folders |
+| macOS | LaunchAgents (`~/Library/LaunchAgents`), LaunchDaemons (`/Library/LaunchDaemons`), crontab |
+| Linux | Systemd services (`~/.config/systemd/user`, `/etc/systemd/system`), crontab, `/etc/cron.d`, `~/.config/autostart` |
 
 - **Scheduled Tasks** — enumerates all non-Microsoft, non-disabled tasks. Flags tasks that were registered after the attack window, or that invoke living-off-the-land binaries (`powershell`, `wscript`, `cscript`, `mshta`, `rundll32`, `regsvr32`) from temp/appdata paths, or that use hidden window arguments (`-WindowStyle Hidden`, `-NonInteractive`)
 - **Registry Run Keys** — inspects `HKCU\...\Run`, `HKLM\...\Run`, `HKCU\...\RunOnce`, and `HKLM\...\RunOnce` for entries that reference node, npm, or script files (`.ps1`, `.vbs`, `.bat`, `.cmd`, `.js`)

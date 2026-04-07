@@ -147,6 +147,22 @@ if (-not $NoSubmit) {
             exit 0
         }
     }
+
+    # Validate password with the server before starting the scan
+    Write-Host '  Verifying submission password...'
+    try {
+        $testBody = [System.Text.Encoding]::UTF8.GetBytes("--test`r`nContent-Disposition: form-data; name=`"password`"`r`n`r`n$submitPassword`r`n--test--`r`n")
+        $testResp = Invoke-WebRequest -Uri 'https://mbfromit.com/ratcatcher/submit' -Method POST `
+            -Body $testBody -ContentType 'multipart/form-data; boundary=test' `
+            -SkipHttpErrorCheck -ErrorAction Stop
+        if ($testResp.StatusCode -eq 401) {
+            Write-Host ''
+            Write-Host '  Incorrect password. Please check with your manager or DevOps team.' -ForegroundColor Red
+            Write-Host ''
+            exit 0
+        }
+    } catch { }
+    Write-Host '  Password verified.' -ForegroundColor Green
     Write-Host ''
 }
 

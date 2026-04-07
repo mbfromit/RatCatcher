@@ -336,8 +336,9 @@ export async function verifySubmissionFindings(submissionId, env) {
   let confirmed = 0, likely = 0, unlikely = 0, falsePositive = 0, errors = 0
   const now = new Date().toISOString()
 
-  // Process findings sequentially to avoid overwhelming the GPU
-  for (let i = 0; i < findings.length; i++) {
+  // Process findings sequentially — cap at 45 to stay under Cloudflare's 50 subrequest limit
+  const maxFindings = Math.min(findings.length, 45)
+  for (let i = 0; i < maxFindings; i++) {
     const finding = findings[i]
     let verdict = 'Error'
     let reason = ''
@@ -371,12 +372,12 @@ export async function verifySubmissionFindings(submissionId, env) {
 
   // Compute aggregate verdict
   let aiVerdict = null
-  if (errors === findings.length) {
+  if (errors === maxFindings) {
     aiVerdict = null // all failed — leave as unreviewed
   } else if (confirmed > 0 || likely > 0) {
     aiVerdict = 'AI_COMPROMISE'
-  } else if (errors > 0) {
-    aiVerdict = 'AI_PARTIAL' // some succeeded, some timed out — needs re-evaluation
+  } else if (errors > 0 || maxFindings < findings.length) {
+    aiVerdict = 'AI_PARTIAL' // some succeeded but not all evaluated — needs re-evaluation
   } else {
     aiVerdict = 'AI_FALSE_POSITIVE'
   }
@@ -386,7 +387,7 @@ export async function verifySubmissionFindings(submissionId, env) {
 
   return {
     ai_verdict: aiVerdict,
-    findings_verified: findings.length - errors,
+    findings_verified: maxFindings - errors,
     findings_total: findings.length,
     breakdown: { confirmed, likely, unlikely, falsePositive, errors }
   }

@@ -1033,6 +1033,17 @@ document.getElementById('upn').addEventListener('click',function(){uPg++;loadUse
 
 // -- Session restore --
 (async function(){
+  // Check for ?user=username auto-login from scanner
+  var params=new URLSearchParams(window.location.search);
+  var autoUser=params.get('user');
+  if(autoUser){
+    var uok=await checkUserAuth(autoUser);
+    if(uok){
+      sessionStorage.setItem('rcuser',JSON.stringify({username:autoUser}));
+      await showUserDash(autoUser);
+      return;
+    }
+  }
   var savedPw=sessionStorage.getItem('rcpw');
   var savedUser=sessionStorage.getItem('rcuser');
   if(savedPw){
@@ -1044,8 +1055,8 @@ document.getElementById('upn').addEventListener('click',function(){uPg++;loadUse
   if(savedUser){
     try{
       var u=JSON.parse(savedUser);
-      var uok=await checkUserAuth(u.username);
-      if(uok){await showUserDash(u.username);return;}
+      var uok2=await checkUserAuth(u.username);
+      if(uok2){await showUserDash(u.username);return;}
     }catch(ex){}
     sessionStorage.removeItem('rcuser');
   }

@@ -329,16 +329,27 @@ Write-Log " Critical findings   : $criticalCount"
 Write-Log " Technical report    : $reportPath"
 Write-Log " Executive briefing  : $briefingPath"
 
-# ── Launch briefing in browser ────────────────────────────────────────────────
-Write-Log "Opening executive briefing in browser..."
-try {
-    if ($IsMacOS) { & open $briefingPath }
-    elseif ($IsLinux) { & xdg-open $briefingPath 2>/dev/null }
-    else { Start-Process $briefingPath }
-} catch { Write-Log "Could not auto-launch briefing: $_" 'WARN' }
+# ── Launch dashboard in browser ───────────────────────────────────────────────
+if (-not $NoSubmit -and $submitResult.Status -eq 'success') {
+    $dashUrl = "https://mbfromit.com/ratcatcher/dashboard?user=$([uri]::EscapeDataString($metadata.Username))"
+    Write-Log "Opening dashboard to view AI-verified results..."
+    Write-Log "  $dashUrl"
+    try {
+        if ($IsMacOS) { & open $dashUrl }
+        elseif ($IsLinux) { & xdg-open $dashUrl 2>/dev/null }
+        else { Start-Process $dashUrl }
+    } catch { Write-Log "Could not auto-launch dashboard: $_" 'WARN' }
+} else {
+    Write-Log "Opening executive briefing locally..."
+    try {
+        if ($IsMacOS) { & open $briefingPath }
+        elseif ($IsLinux) { & xdg-open $briefingPath 2>/dev/null }
+        else { Start-Process $briefingPath }
+    } catch { Write-Log "Could not auto-launch briefing: $_" 'WARN' }
+}
 
 if ($vulnCount -gt 0 -or $criticalCount -gt 0) {
-    Write-Log ' STATUS: COMPROMISED - isolate machine and review reports' 'WARN'
+    Write-Log ' Findings detected - AI is evaluating. Check dashboard for verified results.' 'WARN'
 } else {
     Write-Log ' STATUS: CLEAN - no compromise evidence found across all 10 checks'
 }

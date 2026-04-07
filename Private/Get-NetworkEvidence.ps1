@@ -98,24 +98,21 @@ function Get-NetworkEvidence {
         # ── macOS / Linux: DNS evidence ───────────────────────────────────────
         try {
             if ($IsMacOS) {
-                # Check unified log for DNS resolutions
-                $logOutput = & log show --predicate "eventMessage contains '$c2Domain'" --style compact --last 1d 2>/dev/null | Select-Object -First 5
-                if ($logOutput) {
-                    $findings.Add([PSCustomObject]@{
-                        Type        = 'DnsCacheHit'
-                        Detail      = "System log contains DNS resolution for $c2Domain"
-                        Severity    = 'High'
-                        Description = "$c2Domain found in macOS unified log - machine resolved attacker domain"
-                    })
-                }
-                $logOutput2 = & log show --predicate "eventMessage contains '$c2Domain2'" --style compact --last 1d 2>/dev/null | Select-Object -First 5
-                if ($logOutput2) {
-                    $findings.Add([PSCustomObject]@{
-                        Type        = 'DnsCacheHit'
-                        Detail      = "System log contains DNS resolution for $c2Domain2"
-                        Severity    = 'High'
-                        Description = "$c2Domain2 found in macOS unified log - machine resolved attacker domain"
-                    })
+                # Check unified log for DNS resolutions — filter out self-references from
+                # the log command itself, PowerShell, and RatCatcher processes
+                $filterOut = 'log\b|pwsh|powershell|RatCatcher|Terminal|com\.apple\.console'
+                foreach ($domain in @($c2Domain, $c2Domain2)) {
+                    $logOutput = & log show --predicate "eventMessage contains '$domain'" --style compact --last 1d 2>/dev/null |
+                        Where-Object { $_ -and $_ -notmatch $filterOut } |
+                        Select-Object -First 5
+                    if ($logOutput) {
+                        $findings.Add([PSCustomObject]@{
+                            Type        = 'DnsCacheHit'
+                            Detail      = "System log contains DNS resolution for $domain"
+                            Severity    = 'High'
+                            Description = "$domain found in macOS unified log - machine resolved attacker domain"
+                        })
+                    }
                 }
             } else {
                 # Linux: check systemd journal or /var/log/syslog

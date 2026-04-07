@@ -99,21 +99,40 @@ function Get-NetworkEvidence {
         try {
             if ($IsMacOS) {
                 # Check unified log for DNS resolutions
-                # Include sample log lines so the manager/AI can determine if the resolution
-                # was from actual malware or from the scanner's own log search
+                # Include full log lines so the manager/AI can determine if the resolution
+                # was from actual malware (mDNSResponder, networkd) or from the scanner itself
                 foreach ($domain in @($c2Domain, $c2Domain2)) {
                     $logOutput = & log show --predicate "eventMessage contains '$domain'" --style compact --last 1d 2>/dev/null |
-                        Select-Object -First 10
-                    # Filter out entries that are clearly from this scanner running log show
-                    $realEntries = @($logOutput | Where-Object { $_ -and $_ -notmatch 'log\s+show.*predicate' })
+                        Select-Object -First 20
+                    # Filter out entries from this scanner's own log show commands
+                    $realEntries = @($logOutput | Where-Object {
+                        $_ -and
+                        $_ -notmatch 'log\s+show.*predicate' -and
+                        $_ -notmatch '^\s*$'
+                    })
                     if ($realEntries.Count -gt 0) {
-                        $sample = ($realEntries | Select-Object -First 3) -join '; '
-                        $findings.Add([PSCustomObject]@{
-                            Type        = 'DnsCacheHit'
-                            Detail      = "System log contains DNS resolution for $domain - sample: $sample"
-                            Severity    = 'High'
-                            Description = "$domain found in macOS unified log - machine may have resolved attacker domain. Review sample log entries to confirm."
-                        })
+                        # Classify entries: DNS resolver vs scanner/shell processes
+                        $dnsEntries = @($realEntries | Where-Object { $_ -match 'mDNSResponder|networkd|resolved|dnssd|mdns' })
+                        $otherEntries = @($realEntries | Where-Object { $_ -notmatch 'mDNSResponder|networkd|resolved|dnssd|mdns' })
+                        $sample = ($realEntries | Select-Object -First 5) -join "`n"
+
+                        if ($dnsEntries.Count -gt 0) {
+                            # DNS resolver process found the domain — HIGH confidence real resolution
+                            $findings.Add([PSCustomObject]@{
+                                Type        = 'DnsCacheHit'
+                                Detail      = "DNS RESOLVER resolved $domain — $($dnsEntries.Count) DNS process entries found. Sample:`n$sample"
+                                Severity    = 'Critical'
+                                Description = "CONFIRMED: $domain was resolved by the system DNS resolver (mDNSResponder/networkd). This machine contacted the C2 domain."
+                            })
+                        } else {
+                            # Non-DNS process references — could be scanner, browser, or app referencing the string
+                            $findings.Add([PSCustomObject]@{
+                                Type        = 'DnsCacheHit'
+                                Detail      = "System log contains references to $domain but NOT from DNS resolver — $($otherEntries.Count) entries found. Sample:`n$sample"
+                                Severity    = 'Medium'
+                                Description = "$domain found in macOS log but not from DNS resolver process. May be from a scanner, browser, or security tool referencing the domain name. Review log entries."
+                            })
+                        }
                     }
                 }
             } else {

@@ -979,13 +979,15 @@ async function loadUserRows(){
   } else {
     d.submissions.forEach(function(s){
       var tr=document.createElement('tr');
-      tr.className=s.verdict==='COMPROMISED'?'comp':'clean';
+      tr.className=s.ai_verdict==='AI_PENDING'?'comp':s.ai_verdict==='AI_FALSE_POSITIVE'?'ai-fp':s.verdict==='COMPROMISED'?'comp':'clean';
       var dt=new Date(s.submitted_at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
       var ltag=s.is_latest?'<span class="latest">LATEST</span>':'';
+      var aiStatus=s.ai_verdict==='AI_PENDING'?'<span class="aibtn running" style="cursor:default;margin-left:6px">AI Evaluating...</span>':'';
       tr.innerHTML='<td>'+esc(dt)+'</td><td>'+esc(s.hostname)+ltag+'</td>'
         +'<td>'+esc(fmtDur(s.duration))+'</td>'
-        +'<td class="vrd">'+(s.verdict==='COMPROMISED'?'[!] COMPROMISED':'[+] CLEAN')
-        +(s.positive?'<span class="positive"> &#9888; POSITIVE FINDING</span>':s.reviewed?'<span class="reviewed"> &#10003; REVIEWED</span>':'')+'</td>'
+        +'<td class="vrd">'+_vl(s)+_certBadge(s)
+        +(s.positive?'<span class="positive"> &#9888; POSITIVE FINDING</span>':s.reviewed?'<span class="reviewed"> &#10003; REVIEWED</span>':'')
+        +aiStatus+'</td>'
         +'<td>'
         +'<button class="vbtn" onclick="vwUser(&#39;'+esc(s.id)+'&#39;,&#39;brief&#39;)">Exec Brief</button> '
         +'<button class="vbtn" onclick="vwUser(&#39;'+esc(s.id)+'&#39;,&#39;full&#39;)">Technical Report</button>'
@@ -1004,12 +1006,15 @@ async function vwUser(id,type){
   var blob=await r.blob();
   window.open(URL.createObjectURL(blob),'_blank');
 }
+var userRefreshTimer=null;
 async function showUserDash(username){
   uUser=username;uPg=1;
   document.getElementById('ubadge').textContent=username+"'s Scans";
   hide(['choice','login','ulogin','dash']);
   show('udash','block');
   await loadUserRows();
+  if(userRefreshTimer)clearInterval(userRefreshTimer);
+  userRefreshTimer=setInterval(loadUserRows,15000);
 }
 function userLogout(){
   uUser='';

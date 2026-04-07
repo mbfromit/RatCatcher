@@ -806,8 +806,8 @@ export async function handleUserSubmissions(request, env) {
     if (!total) return json({ error: 'Not found' }, 404)
 
     const rows = await env.DB.prepare(`
-      SELECT s.id, s.hostname, s.username, s.submitted_at, s.verdict, s.duration,
-             s.projects_scanned, s.findings_count,
+      SELECT s.id, s.hostname, s.username, s.submitted_at, s.verdict, s.ai_verdict, s.duration,
+             s.projects_scanned, s.findings_count, s.certified_by,
              CASE WHEN s.submitted_at = latest.max_at THEN 1 ELSE 0 END AS is_latest,
              COALESCE(ac.ack_count, 0) AS ack_count,
              COALESCE(tc.threat_count, 0) AS threat_count,

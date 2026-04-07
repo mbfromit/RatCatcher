@@ -426,7 +426,7 @@ strong{color:var(--text-bright)}
     # ── Write file ─────────────────────────────────────────────────────────────
     $null = New-Item -ItemType Directory -Path $OutputPath -Force
     $ts   = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $hn   = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'unknown' }
+    $hn   = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } elseif (Get-Command hostname -ErrorAction SilentlyContinue) { (hostname).Trim() } else { 'unknown' }
     $file = Join-Path $OutputPath "RatCatcher-Report-${hn}-${ts}.html"
 
     $html | Set-Content -Path $file -Encoding UTF8

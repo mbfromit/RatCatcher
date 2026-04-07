@@ -315,7 +315,11 @@ Write-Log " Executive briefing  : $briefingPath"
 
 # ── Launch briefing in browser ────────────────────────────────────────────────
 Write-Log "Opening executive briefing in browser..."
-try { Start-Process $briefingPath } catch { Write-Log "Could not auto-launch briefing: $_" 'WARN' }
+try {
+    if ($IsMacOS) { & open $briefingPath }
+    elseif ($IsLinux) { & xdg-open $briefingPath 2>/dev/null }
+    else { Start-Process $briefingPath }
+} catch { Write-Log "Could not auto-launch briefing: $_" 'WARN' }
 
 if ($vulnCount -gt 0 -or $criticalCount -gt 0) {
     Write-Log ' STATUS: COMPROMISED - isolate machine and review reports' 'WARN'

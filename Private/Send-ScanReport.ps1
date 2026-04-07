@@ -10,7 +10,7 @@ function Send-ScanReport {
         [bool]$UseTLS = $true
     )
     try {
-        $hn     = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } else { 'unknown' }
+        $hn     = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } elseif ($env:HOSTNAME) { $env:HOSTNAME } elseif (Get-Command hostname -ErrorAction SilentlyContinue) { (hostname).Trim() } else { 'unknown' }
         $params = @{
             SmtpServer  = $SMTPServer; Port = $SMTPPort; From = $FromAddress; To = $ToAddress
             Subject     = "Axios Compromise Scan - ${hn} - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"

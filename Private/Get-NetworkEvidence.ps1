@@ -99,7 +99,7 @@ function Get-NetworkEvidence {
         try {
             if ($IsMacOS) {
                 # Check unified log for DNS resolutions
-                $logOutput = & log show --predicate "eventMessage contains '$c2Domain'" --style compact --last 7d 2>/dev/null | Select-Object -First 5
+                $logOutput = & log show --predicate "eventMessage contains '$c2Domain'" --style compact --last 1d 2>/dev/null | Select-Object -First 5
                 if ($logOutput) {
                     $findings.Add([PSCustomObject]@{
                         Type        = 'DnsCacheHit'
@@ -108,7 +108,7 @@ function Get-NetworkEvidence {
                         Description = "$c2Domain found in macOS unified log - machine resolved attacker domain"
                     })
                 }
-                $logOutput2 = & log show --predicate "eventMessage contains '$c2Domain2'" --style compact --last 7d 2>/dev/null | Select-Object -First 5
+                $logOutput2 = & log show --predicate "eventMessage contains '$c2Domain2'" --style compact --last 1d 2>/dev/null | Select-Object -First 5
                 if ($logOutput2) {
                     $findings.Add([PSCustomObject]@{
                         Type        = 'DnsCacheHit'

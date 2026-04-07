@@ -60,7 +60,8 @@ function Search-DroppedPayloads {
     foreach ($scanPath in $ScanPaths) {
         try {
             Get-ChildItem -Path $scanPath -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.CreationTime -ge $AttackWindowStart -and $_.Length -le 10MB } |
+            Where-Object { $_.CreationTime -ge $AttackWindowStart -and $_.Length -le 10MB -and $_.Length -gt 0 } |
+            Where-Object { try { [IO.File]::OpenRead($_.FullName).Dispose(); $true } catch { $false } } |
             Select-Object -First 2000 |
             ForEach-Object {
                 $file = $_

@@ -215,16 +215,16 @@ export async function handleReport(request, env, id, type) {
     const reqUrl = new URL(request.url)
     const reportOrigin = reqUrl.origin
     const basePath = reqUrl.pathname.match(/^\/(ratcatcher(?:-dev)?)\//)?.[0]?.slice(0,-1) || '/ratcatcher'
-    const reportPw = (request.headers.get('X-Admin-Password') || '').replace(/[\\'"]/g, '')
 
     if (type === 'brief') {
       const script = `<script>
+var _rcBriefPw='';
 function _rcViewFull(){
   try{if(window.opener&&window.opener.vw){window.opener.vw('${safeId}','full');return}}catch(e){}
-  var pw='${reportPw}'||prompt('Admin password:','');
-  if(!pw)return;
-  fetch('${reportOrigin}${basePath}/api/report/${safeId}/full',{headers:{'X-Admin-Password':pw}})
-    .then(function(r){return r.ok?r.blob():Promise.reject(r.status)})
+  if(!_rcBriefPw)_rcBriefPw=prompt('Admin password:','')||'';
+  if(!_rcBriefPw)return;
+  fetch('${reportOrigin}${basePath}/api/report/${safeId}/full',{headers:{'X-Admin-Password':_rcBriefPw}})
+    .then(function(r){if(r.ok)return r.blob();if(r.status===401)_rcBriefPw='';return Promise.reject(r.status)})
     .then(function(b){window.open(URL.createObjectURL(b),'_blank')})
     .catch(function(e){alert('Failed to load report ('+e+')')})
 }
@@ -303,7 +303,9 @@ function _rcViewFull(){
       // Inject ack script — use absolute URL so it works from blob: origins
       const ackScript = `<script>
 (function(){
-  var SUB='${safeId}',B='${reportOrigin}/ratcatcher',PW='${reportPw}';
+  var SUB='${safeId}',B='${reportOrigin}/ratcatcher';
+  window._rcPW=window._rcPW||prompt('Admin password:','')||'';
+  var PW=window._rcPW;
 
   function getHeaders(){return{'X-Admin-Password':PW,'Content-Type':'application/json'}}
 
@@ -631,7 +633,7 @@ function _rcViewFull(){
 
       const aiVerdictScript = `<script>
 (function(){
-  var SUB='${safeId}',B='${reportOrigin}${basePath}',PW='${reportPw}';
+  var SUB='${safeId}',B='${reportOrigin}${basePath}',PW=window._rcPW||'';
   function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   fetch(B+'/api/submissions/'+SUB+'/ai-verdicts',{headers:{'X-Admin-Password':PW}})
     .then(function(r){return r.ok?r.json():Promise.resolve({verdicts:[]})})
@@ -708,7 +710,7 @@ function _rcViewFull(){
 
         certScript = `<script>
 (function(){
-  var SUB='${safeId}',B='${reportOrigin}${basePath}',PW='${reportPw}';
+  var SUB='${safeId}',B='${reportOrigin}${basePath}',PW=window._rcPW||'';
   var isCertified=${isCertified};
   var bar=document.createElement('div');
   bar.className=isCertified?'rc-cert-bar certified':'rc-cert-bar';

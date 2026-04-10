@@ -258,12 +258,12 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
   <button class="legend-btn" onclick="openLegend()">&#9432; Status Legend</button>
   <div class="stats">
     <div class="stat selected" id="f-all"><div class="lbl">Total Scans</div><div class="val" id="s-total">-</div></div>
+    <div class="stat unq" id="f-unique"><div class="lbl">Unique Scans</div><div class="val" id="s-unique">-</div></div>
     <div class="stat clean" id="f-clean"><div class="lbl">Clean</div><div class="val" id="s-clean">-</div></div>
     <div class="stat rvw" id="f-reviewed"><div class="lbl">Reviewed</div><div class="val" id="s-reviewed">-</div></div>
     <div class="stat pos" id="f-pos"><div class="lbl">Positive Findings</div><div class="val" id="s-pos">-</div></div>
     <div class="stat nrvw" id="f-unreviewed"><div class="lbl">Unreviewed</div><div class="val" id="s-unreviewed">-</div></div>
     <div class="stat" id="f-remediated"><div class="lbl">Remediated</div><div class="val" id="s-remediated" style="color:#58a6ff">-</div></div>
-    <div class="stat unq" id="f-unique"><div class="lbl">Unique Scans</div><div class="val" id="s-unique">-</div></div>
   </div>
   <div class="search">
     <input type="text" id="srch" placeholder="Search hostname or username...">
@@ -463,7 +463,7 @@ tr.remediated .vrd{color:#58a6ff;font-weight:bold}
     </ul>
 
     <h3>Simplified Dashboard</h3>
-    <p>The dashboard now has <b>7 filter cards</b>: Total, Clean, Reviewed, Positive Findings, Unreviewed, Remediated, and Unique Scans. Click any hostname to see all scans for that machine. Click any card to filter.</p>
+    <p>The dashboard now has <b>7 filter cards</b>: Total, Unique Scans, Clean, Reviewed, Positive Findings, Unreviewed, and Remediated. Click any hostname to see all scans for that machine. Click any card to filter.</p>
     <ul>
       <li><b class="wn-blue">Remediated</b> (new) - machines that were previously compromised but the latest scan came back clean.</li>
       <li><b style="color:#f0883e">Unreviewed</b> - submissions where AI evaluation failed. Should normally be 0.</li>

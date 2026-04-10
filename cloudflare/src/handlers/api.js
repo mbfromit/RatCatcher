@@ -21,11 +21,11 @@ export async function handleSubmissions(request, env) {
     if (filterVerdict) { conditions.push('verdict = ?'); binds.push(filterVerdict) }
     if (search) { conditions.push('(hostname LIKE ? OR username LIKE ?)'); binds.push('%'+search+'%', '%'+search+'%') }
     if (positive === '1') {
-      conditions.push("(ai_verdict = 'AI_COMPROMISE' OR (ai_verdict IS NULL AND (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id AND is_threat = 1) > 0))")
+      conditions.push("submitted_at = (SELECT MAX(s3.submitted_at) FROM submissions s3 WHERE s3.hostname = submissions.hostname) AND verdict = 'COMPROMISED' AND NOT (COALESCE(ai_verdict, '') = 'AI_FALSE_POSITIVE' OR ((SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id AND is_threat = 1) = 0 AND findings_count > 0 AND (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id) >= findings_count))")
     } else if (filterReviewed === 'unreviewed') {
-      conditions.push("verdict = 'COMPROMISED' AND (ai_verdict IS NULL OR ai_verdict = 'AI_PENDING' OR ai_verdict = 'AI_PARTIAL') AND (findings_count IS NULL OR findings_count = 0 OR (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id) < findings_count)")
+      conditions.push("verdict = 'COMPROMISED' AND submitted_at = (SELECT MAX(s3.submitted_at) FROM submissions s3 WHERE s3.hostname = submissions.hostname) AND (ai_verdict IS NULL OR ai_verdict = 'AI_PENDING' OR ai_verdict = 'AI_PARTIAL') AND (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id AND is_threat = 1) = 0 AND (findings_count IS NULL OR findings_count = 0 OR (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id) < findings_count)")
     } else if (filterReviewed === 'remediated') {
-      conditions.push("verdict = 'CLEAN' AND submitted_at = (SELECT MAX(s3.submitted_at) FROM submissions s3 WHERE s3.hostname = submissions.hostname) AND EXISTS (SELECT 1 FROM submissions s4 WHERE s4.hostname = submissions.hostname AND s4.verdict = 'COMPROMISED')")
+      conditions.push("submitted_at = (SELECT MAX(s3.submitted_at) FROM submissions s3 WHERE s3.hostname = submissions.hostname) AND EXISTS (SELECT 1 FROM submissions s4 WHERE s4.hostname = submissions.hostname AND s4.verdict = 'COMPROMISED') AND (verdict = 'CLEAN' OR (verdict = 'COMPROMISED' AND (COALESCE(ai_verdict, '') = 'AI_FALSE_POSITIVE' OR ((SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id AND is_threat = 1) = 0 AND findings_count > 0 AND (SELECT COUNT(*) FROM finding_acknowledgements WHERE submission_id = submissions.id) >= findings_count)) AND COALESCE(ai_verdict, '') != 'AI_COMPROMISE'))")
     } else if (filterReviewed === 'unique') {
       conditions.push("submitted_at = (SELECT MAX(s3.submitted_at) FROM submissions s3 WHERE s3.hostname = submissions.hostname)")
     } else if (filterReviewed === '1') {
@@ -44,13 +44,29 @@ export async function handleSubmissions(request, env) {
         CASE WHEN s.submitted_at = latest.max_at THEN 1 ELSE 0 END AS is_latest,
         COALESCE(ac.ack_count, 0) AS ack_count,
         COALESCE(tc.threat_count, 0) AS threat_count,
-        CASE WHEN s.ai_verdict = 'AI_COMPROMISE' OR (s.ai_verdict IS NULL AND COALESCE(tc.threat_count, 0) > 0) THEN 1 ELSE 0 END AS positive,
+        CASE WHEN s.submitted_at = latest.max_at
+               AND s.verdict = 'COMPROMISED'
+               AND NOT (
+                 COALESCE(s.ai_verdict, '') = 'AI_FALSE_POSITIVE'
+                 OR (COALESCE(tc.threat_count, 0) = 0 AND s.findings_count > 0 AND COALESCE(ac.ack_count, 0) >= s.findings_count)
+               )
+             THEN 1 ELSE 0 END AS positive,
         CASE WHEN s.ai_verdict = 'AI_FALSE_POSITIVE'
                OR (COALESCE(tc.threat_count, 0) = 0 AND s.findings_count > 0 AND COALESCE(ac.ack_count, 0) >= s.findings_count)
              THEN 1 ELSE 0 END AS reviewed,
-        CASE WHEN s.verdict = 'CLEAN'
-               AND s.submitted_at = latest.max_at
+        CASE WHEN s.submitted_at = latest.max_at
                AND EXISTS (SELECT 1 FROM submissions s2 WHERE s2.hostname = s.hostname AND s2.verdict = 'COMPROMISED')
+               AND (
+                 s.verdict = 'CLEAN'
+                 OR (
+                   s.verdict = 'COMPROMISED'
+                   AND (
+                     COALESCE(s.ai_verdict, '') = 'AI_FALSE_POSITIVE'
+                     OR (COALESCE(tc.threat_count, 0) = 0 AND s.findings_count > 0 AND COALESCE(ac.ack_count, 0) >= s.findings_count)
+                   )
+                   AND COALESCE(s.ai_verdict, '') != 'AI_COMPROMISE'
+                 )
+               )
              THEN 1 ELSE 0 END AS remediated
       FROM (
         SELECT id, hostname, username, submitted_at, verdict, ai_verdict, duration,
@@ -87,7 +103,15 @@ export async function handleStats(request, env) {
         COUNT(*) AS total,
         COUNT(DISTINCT s.hostname) AS unique_hosts,
         SUM(CASE WHEN verdict = 'CLEAN' THEN 1 ELSE 0 END) AS clean,
-        SUM(CASE WHEN ai_verdict = 'AI_COMPROMISE' OR (ai_verdict IS NULL AND COALESCE(tc.threat_count, 0) > 0) THEN 1 ELSE 0 END) AS positive,
+        SUM(CASE WHEN s.submitted_at = latest.max_at
+                   AND s.verdict = 'COMPROMISED'
+                   AND NOT (
+                     COALESCE(s.ai_verdict, '') = 'AI_FALSE_POSITIVE'
+                     OR (COALESCE(tc.threat_count, 0) = 0
+                         AND s.findings_count > 0
+                         AND COALESCE(ac.ack_count, 0) >= s.findings_count)
+                   )
+                 THEN 1 ELSE 0 END) AS positive,
         SUM(CASE WHEN verdict = 'COMPROMISED'
                    AND (ai_verdict = 'AI_FALSE_POSITIVE'
                         OR (COALESCE(tc.threat_count, 0) = 0
@@ -95,7 +119,8 @@ export async function handleStats(request, env) {
                             AND COALESCE(ac.ack_count, 0) >= s.findings_count))
                    AND ai_verdict != 'AI_COMPROMISE'
                  THEN 1 ELSE 0 END) AS reviewed,
-        SUM(CASE WHEN verdict = 'COMPROMISED'
+        SUM(CASE WHEN s.submitted_at = latest.max_at
+              AND verdict = 'COMPROMISED'
               AND (ai_verdict IS NULL OR ai_verdict = 'AI_PENDING' OR ai_verdict = 'AI_PARTIAL')
               AND COALESCE(tc.threat_count, 0) = 0
               AND (s.findings_count IS NULL OR s.findings_count = 0
@@ -103,6 +128,9 @@ export async function handleStats(request, env) {
              THEN 1 ELSE 0 END) AS compromised,
         SUM(CASE WHEN ai_verdict = 'AI_COMPROMISE' AND certified_by IS NULL THEN 1 ELSE 0 END) AS awaiting_cert
       FROM submissions s
+      LEFT JOIN (
+        SELECT hostname, MAX(submitted_at) AS max_at FROM submissions GROUP BY hostname
+      ) latest ON s.hostname = latest.hostname
       LEFT JOIN (
         SELECT submission_id, COUNT(*) AS ack_count FROM finding_acknowledgements GROUP BY submission_id
       ) ac ON s.id = ac.submission_id
@@ -112,11 +140,29 @@ export async function handleStats(request, env) {
     `).first()
 
     const remRow = await env.DB.prepare(`
-      SELECT COUNT(DISTINCT hostname) AS remediated
+      SELECT COUNT(DISTINCT s1.hostname) AS remediated
       FROM submissions s1
-      WHERE s1.verdict = 'CLEAN'
-        AND s1.submitted_at = (SELECT MAX(submitted_at) FROM submissions WHERE hostname = s1.hostname)
+      LEFT JOIN (
+        SELECT submission_id, COUNT(*) AS ack_count FROM finding_acknowledgements GROUP BY submission_id
+      ) ac ON s1.id = ac.submission_id
+      LEFT JOIN (
+        SELECT submission_id, COUNT(*) AS threat_count FROM finding_acknowledgements WHERE is_threat = 1 GROUP BY submission_id
+      ) tc ON s1.id = tc.submission_id
+      WHERE s1.submitted_at = (SELECT MAX(submitted_at) FROM submissions WHERE hostname = s1.hostname)
         AND EXISTS (SELECT 1 FROM submissions s2 WHERE s2.hostname = s1.hostname AND s2.verdict = 'COMPROMISED')
+        AND (
+          s1.verdict = 'CLEAN'
+          OR (
+            s1.verdict = 'COMPROMISED'
+            AND (
+              COALESCE(s1.ai_verdict, '') = 'AI_FALSE_POSITIVE'
+              OR (COALESCE(tc.threat_count, 0) = 0
+                  AND s1.findings_count > 0
+                  AND COALESCE(ac.ack_count, 0) >= s1.findings_count)
+            )
+            AND COALESCE(s1.ai_verdict, '') != 'AI_COMPROMISE'
+          )
+        )
     `).first()
 
     return json({

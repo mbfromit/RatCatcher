@@ -1,2 +1,10 @@
 .worktrees/
+node_modules/
 cloudflare/node_modules/
+
+# Database backups — contain scan data, keep local only
+*.sql
+ratcatcher-db-backup-*.sql
+
+# Error capture files (transient)
+*.rtf

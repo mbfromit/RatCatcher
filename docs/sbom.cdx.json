@@ -1,0 +1,394 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:a7c3e1f0-4d89-4b2a-9e6c-8f1234567890",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-04-13T00:00:00Z",
+    "tools": [
+      {
+        "vendor": "Anthropic",
+        "name": "Claude Code",
+        "version": "1.0"
+      }
+    ],
+    "authors": [
+      {
+        "name": "Mark Berry",
+        "email": "mbfromit@gmail.com"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "bom-ref": "ratcatcher",
+      "name": "RatCatcher",
+      "version": "2.1.0",
+      "description": "AI-powered cross-platform PowerShell forensic scanner and Cloudflare Worker dashboard for detecting the March 31 2026 Axios NPM supply chain attack.",
+      "supplier": {
+        "name": "Mark Berry"
+      },
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/mbfromit/RatCatcher"
+        },
+        {
+          "type": "website",
+          "url": "https://mbfromit.com/ratcatcher/dashboard"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "application",
+      "bom-ref": "scanner",
+      "name": "RatCatcher-Scanner",
+      "version": "2.1.0",
+      "description": "PowerShell 7.0+ forensic scanner — 10-check suite covering the Axios supply chain compromise kill chain on Windows, macOS, and Linux. Zero external module dependencies.",
+      "group": "ratcatcher",
+      "purl": "pkg:generic/ratcatcher-scanner@2.1.0",
+      "properties": [
+        { "name": "cdx:runtime", "value": "PowerShell 7.0+" },
+        { "name": "cdx:platforms", "value": "Windows, macOS, Linux" },
+        { "name": "cdx:external-dependencies", "value": "none — uses only PowerShell built-ins and .NET BCL" }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "dashboard",
+      "name": "RatCatcher-Dashboard",
+      "version": "1.0.0",
+      "description": "Cloudflare Worker serving admin dashboard, submission API, AI verification engine, and report management. Zero runtime npm dependencies.",
+      "group": "ratcatcher",
+      "purl": "pkg:generic/ratcatcher-dashboard@1.0.0",
+      "properties": [
+        { "name": "cdx:runtime", "value": "Cloudflare Workers (compatibility_date 2025-01-01)" },
+        { "name": "cdx:d1-database", "value": "ratcatcher (b535d898-8007-4fc8-8f41-63da8dd1f1a3)" },
+        { "name": "cdx:r2-bucket", "value": "ratcatcher-reports" },
+        { "name": "cdx:cron-trigger", "value": "*/5 * * * *" },
+        { "name": "cdx:route", "value": "mbfromit.com/ratcatcher/*" }
+      ]
+    },
+    {
+      "type": "framework",
+      "bom-ref": "powershell",
+      "name": "PowerShell",
+      "version": "7.0",
+      "description": "Cross-platform task automation shell and scripting language.",
+      "supplier": { "name": "Microsoft" },
+      "purl": "pkg:github/PowerShell/PowerShell@v7.0.0",
+      "licenses": [ { "license": { "id": "MIT" } } ],
+      "externalReferences": [
+        { "type": "website", "url": "https://github.com/PowerShell/PowerShell" }
+      ]
+    },
+    {
+      "type": "framework",
+      "bom-ref": "dotnet-runtime",
+      "name": ".NET Runtime",
+      "version": "",
+      "description": "Base class libraries used by the scanner: System.Text.Encoding, System.IO.File, System.IO.MemoryStream, System.IO.Path, System.Convert, System.Collections.Generic.List, System.Security.Cryptography (via Get-FileHash), System.Uri.",
+      "supplier": { "name": "Microsoft" },
+      "licenses": [ { "license": { "id": "MIT" } } ]
+    },
+    {
+      "type": "platform",
+      "bom-ref": "cf-workers-runtime",
+      "name": "Cloudflare Workers Runtime",
+      "version": "",
+      "description": "Serverless JavaScript runtime providing fetch API, crypto.randomUUID(), AbortSignal.timeout(), Request/Response, URL/URLSearchParams, FormData, and ctx.waitUntil().",
+      "supplier": { "name": "Cloudflare Inc." },
+      "externalReferences": [
+        { "type": "website", "url": "https://developers.cloudflare.com/workers/" }
+      ]
+    },
+    {
+      "type": "platform",
+      "bom-ref": "cf-d1",
+      "name": "Cloudflare D1",
+      "version": "",
+      "description": "Serverless SQLite database. Binding: DB. APIs: prepare(), bind(), run(), all(), first().",
+      "supplier": { "name": "Cloudflare Inc." },
+      "externalReferences": [
+        { "type": "website", "url": "https://developers.cloudflare.com/d1/" }
+      ]
+    },
+    {
+      "type": "platform",
+      "bom-ref": "cf-r2",
+      "name": "Cloudflare R2",
+      "version": "",
+      "description": "S3-compatible object storage. Binding: BUCKET. APIs: put(), get(), delete().",
+      "supplier": { "name": "Cloudflare Inc." },
+      "externalReferences": [
+        { "type": "website", "url": "https://developers.cloudflare.com/r2/" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/wrangler@3.114.17",
+      "name": "wrangler",
+      "version": "3.114.17",
+      "description": "Cloudflare Worker CLI for local development, testing, and deployment.",
+      "scope": "excluded",
+      "purl": "pkg:npm/wrangler@3.114.17",
+      "cpe": "cpe:2.3:a:cloudflare:wrangler:3.114.17:*:*:*:*:node.js:*:*",
+      "supplier": { "name": "Cloudflare Inc." },
+      "licenses": [ { "license": { "id": "MIT" } }, { "license": { "id": "Apache-2.0" } } ],
+      "externalReferences": [
+        { "type": "distribution", "url": "https://www.npmjs.com/package/wrangler" }
+      ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "devDependency" },
+        { "name": "cdx:npm:version-constraint", "value": "^3.0.0" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/vitest@2.1.9",
+      "name": "vitest",
+      "version": "2.1.9",
+      "description": "Unit test framework built on Vite.",
+      "scope": "excluded",
+      "purl": "pkg:npm/vitest@2.1.9",
+      "cpe": "cpe:2.3:a:vitest:vitest:2.1.9:*:*:*:*:node.js:*:*",
+      "licenses": [ { "license": { "id": "MIT" } } ],
+      "externalReferences": [
+        { "type": "distribution", "url": "https://www.npmjs.com/package/vitest" }
+      ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "devDependency" },
+        { "name": "cdx:npm:version-constraint", "value": "^2.0.0" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40cloudflare/workerd@1.20250718.0",
+      "name": "@cloudflare/workerd",
+      "version": "1.20250718.0",
+      "description": "Local Cloudflare Worker runtime with platform-specific binaries (darwin-64, darwin-arm64, linux-64, linux-arm64, windows-64). Transitive dev dependency.",
+      "scope": "excluded",
+      "purl": "pkg:npm/%40cloudflare/workerd@1.20250718.0",
+      "supplier": { "name": "Cloudflare Inc." },
+      "licenses": [ { "license": { "id": "Apache-2.0" } } ],
+      "externalReferences": [
+        { "type": "distribution", "url": "https://www.npmjs.com/package/@cloudflare/workerd" }
+      ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "transitive devDependency (via wrangler)" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40cloudflare/kv-asset-handler@0.3.4",
+      "name": "@cloudflare/kv-asset-handler",
+      "version": "0.3.4",
+      "description": "Static asset serving for Cloudflare KV. Transitive dev dependency.",
+      "scope": "excluded",
+      "purl": "pkg:npm/%40cloudflare/kv-asset-handler@0.3.4",
+      "supplier": { "name": "Cloudflare Inc." },
+      "licenses": [ { "license": { "id": "MIT" } }, { "license": { "id": "BSD-3-Clause" } } ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "transitive devDependency (via wrangler)" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40cloudflare/unenv-preset@2.0.2",
+      "name": "@cloudflare/unenv-preset",
+      "version": "2.0.2",
+      "description": "Node.js compatibility shim for Cloudflare Workers. Transitive dev dependency.",
+      "scope": "excluded",
+      "purl": "pkg:npm/%40cloudflare/unenv-preset@2.0.2",
+      "supplier": { "name": "Cloudflare Inc." },
+      "licenses": [ { "license": { "id": "MIT" } } ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "transitive devDependency (via wrangler)" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/esbuild@0.17.19",
+      "name": "esbuild",
+      "version": "0.17.19",
+      "description": "JavaScript bundler used by wrangler for Worker builds. Transitive dev dependency.",
+      "scope": "excluded",
+      "purl": "pkg:npm/esbuild@0.17.19",
+      "licenses": [ { "license": { "id": "MIT" } } ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "transitive devDependency (via wrangler)" }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/mime@3.0.0",
+      "name": "mime",
+      "version": "3.0.0",
+      "description": "MIME type detection library. Transitive dev dependency.",
+      "scope": "excluded",
+      "purl": "pkg:npm/mime@3.0.0",
+      "licenses": [ { "license": { "id": "MIT" } } ],
+      "properties": [
+        { "name": "cdx:npm:dependency-type", "value": "transitive devDependency (via wrangler)" }
+      ]
+    },
+    {
+      "type": "machine-learning-model",
+      "bom-ref": "gemma-4-31b",
+      "name": "Gemma 4",
+      "version": "31b",
+      "description": "Google AI model for finding verification. Served via Ollama on self-hosted infrastructure through Cloudflare Tunnel. STATUS: OFFLINE as of April 2026.",
+      "supplier": { "name": "Google" },
+      "licenses": [ { "license": { "name": "Gemma Terms of Use" } } ],
+      "purl": "pkg:generic/google/gemma-4@31b",
+      "externalReferences": [
+        { "type": "distribution", "url": "https://ollama.com/library/gemma4" }
+      ],
+      "properties": [
+        { "name": "cdx:ml:inference-server", "value": "Ollama" },
+        { "name": "cdx:ml:access-method", "value": "Cloudflare Tunnel (AI_TUNNEL_URL)" },
+        { "name": "cdx:ml:status", "value": "OFFLINE" },
+        { "name": "cdx:ml:endpoints", "value": "/api/ps (status), /api/chat (inference), /api/generate (warmup)" }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "ollama",
+      "name": "Ollama",
+      "version": "",
+      "description": "Local LLM inference server. Self-hosted on AWS, accessed via Cloudflare Tunnel. STATUS: OFFLINE.",
+      "supplier": { "name": "Ollama" },
+      "licenses": [ { "license": { "id": "MIT" } } ],
+      "externalReferences": [
+        { "type": "website", "url": "https://ollama.com" }
+      ]
+    },
+    {
+      "type": "framework",
+      "bom-ref": "pester",
+      "name": "Pester",
+      "version": "",
+      "description": "PowerShell testing framework. 13 test files in Tests/ directory.",
+      "scope": "excluded",
+      "licenses": [ { "license": { "id": "Apache-2.0" } } ],
+      "externalReferences": [
+        { "type": "vcs", "url": "https://github.com/pester/Pester" }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "ratcatcher",
+      "dependsOn": [ "scanner", "dashboard" ]
+    },
+    {
+      "ref": "scanner",
+      "dependsOn": [ "powershell" ]
+    },
+    {
+      "ref": "powershell",
+      "dependsOn": [ "dotnet-runtime" ]
+    },
+    {
+      "ref": "dashboard",
+      "dependsOn": [
+        "cf-workers-runtime",
+        "cf-d1",
+        "cf-r2"
+      ]
+    },
+    {
+      "ref": "pkg:npm/wrangler@3.114.17",
+      "dependsOn": [
+        "pkg:npm/%40cloudflare/workerd@1.20250718.0",
+        "pkg:npm/%40cloudflare/kv-asset-handler@0.3.4",
+        "pkg:npm/%40cloudflare/unenv-preset@2.0.2",
+        "pkg:npm/esbuild@0.17.19",
+        "pkg:npm/mime@3.0.0"
+      ]
+    },
+    {
+      "ref": "pkg:npm/vitest@2.1.9",
+      "dependsOn": []
+    },
+    {
+      "ref": "gemma-4-31b",
+      "dependsOn": [ "ollama" ]
+    }
+  ],
+  "compositions": [
+    {
+      "aggregate": "complete",
+      "assemblies": [ "scanner", "dashboard" ]
+    },
+    {
+      "aggregate": "incomplete",
+      "assemblies": [
+        "pkg:npm/wrangler@3.114.17",
+        "pkg:npm/vitest@2.1.9"
+      ],
+      "dependencies": [
+        "pkg:npm/wrangler@3.114.17"
+      ]
+    }
+  ],
+  "services": [
+    {
+      "bom-ref": "svc:ratcatcher-api",
+      "name": "RatCatcher Dashboard API",
+      "description": "Cloudflare Worker serving dashboard UI and REST API for scan management.",
+      "endpoints": [
+        "https://mbfromit.com/ratcatcher/dashboard",
+        "https://mbfromit.com/ratcatcher/submit",
+        "https://mbfromit.com/ratcatcher/api/stats",
+        "https://mbfromit.com/ratcatcher/api/submissions",
+        "https://mbfromit.com/ratcatcher/api/report/{id}/{brief|full}",
+        "https://mbfromit.com/ratcatcher/api/submissions/{id}/acks",
+        "https://mbfromit.com/ratcatcher/api/submissions/{id}/ai-verify",
+        "https://mbfromit.com/ratcatcher/api/submissions/{id}/ai-verdicts",
+        "https://mbfromit.com/ratcatcher/api/submissions/{id}/certify",
+        "https://mbfromit.com/ratcatcher/api/submissions/{id}/override-verdict",
+        "https://mbfromit.com/ratcatcher/api/submissions/{id}/findings-count",
+        "https://mbfromit.com/ratcatcher/api/ai-verify-all",
+        "https://mbfromit.com/ratcatcher/api/ai-warmup",
+        "https://mbfromit.com/ratcatcher/api/ai-status",
+        "https://mbfromit.com/ratcatcher/api/export",
+        "https://mbfromit.com/ratcatcher/api/user-submissions",
+        "https://mbfromit.com/ratcatcher/api/user-report/{id}/{brief|full}"
+      ],
+      "authenticated": true,
+      "x-trust-boundary": true,
+      "data": [
+        {
+          "name": "Scan Submissions",
+          "classification": "internal",
+          "flow": "inbound",
+          "description": "Scanner results including hostname, username, verdict, finding counts, and HTML report files."
+        },
+        {
+          "name": "AI Verdicts",
+          "classification": "internal",
+          "flow": "bi-directional",
+          "description": "Finding data sent to Gemma 4 for classification; verdicts stored in D1."
+        }
+      ]
+    },
+    {
+      "bom-ref": "svc:ollama-tunnel",
+      "name": "Ollama AI Tunnel",
+      "description": "Cloudflare Tunnel to self-hosted Ollama instance running Gemma 4 31B. CURRENTLY OFFLINE.",
+      "endpoints": [
+        "${AI_TUNNEL_URL}/api/ps",
+        "${AI_TUNNEL_URL}/api/chat",
+        "${AI_TUNNEL_URL}/api/generate"
+      ],
+      "authenticated": true,
+      "x-trust-boundary": true,
+      "properties": [
+        { "name": "cdx:service:status", "value": "OFFLINE" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,471 @@
+SPDXVersion: SPDX-2.3
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: RatCatcher-SBOM
+DocumentNamespace: https://github.com/mbfromit/RatCatcher/sbom/2026-04-13
+Creator: Tool: Claude Code
+Creator: Person: Mark Berry
+Created: 2026-04-13T00:00:00Z
+
+## ============================================================================
+## Product Package
+## ============================================================================
+
+PackageName: RatCatcher
+SPDXID: SPDXRef-RatCatcher
+PackageVersion: 2.1.0
+PackageSupplier: Person: Mark Berry
+PackageDownloadLocation: https://github.com/mbfromit/RatCatcher
+FilesAnalyzed: true
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>AI-powered cross-platform PowerShell forensic scanner and Cloudflare Worker dashboard for detecting the March 31 2026 Axios NPM supply chain attack.</text>
+PrimaryPackagePurpose: APPLICATION
+
+## ============================================================================
+## Component: PowerShell Scanner
+## ============================================================================
+
+PackageName: RatCatcher-Scanner
+SPDXID: SPDXRef-Scanner
+PackageVersion: 2.1.0
+PackageSupplier: Person: Mark Berry
+PackageDownloadLocation: https://github.com/mbfromit/RatCatcher
+FilesAnalyzed: true
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>PowerShell 7.0+ forensic scanner that runs 10 checks covering the Axios supply chain compromise kill chain on Windows, macOS, and Linux.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:generic/ratcatcher-scanner@2.1.0
+
+Relationship: SPDXRef-RatCatcher CONTAINS SPDXRef-Scanner
+
+## Scanner Source Files
+
+FileName: ./Invoke-RatCatcher.ps1
+SPDXID: SPDXRef-File-InvokeRatCatcher
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Main entry point - orchestrates 10-check forensic suite
+
+FileName: ./Private/Get-NodeProjects.ps1
+SPDXID: SPDXRef-File-GetNodeProjects
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 1 - Discovers Node.js projects by finding package.json files
+
+FileName: ./Private/Invoke-LockfileAnalysis.ps1
+SPDXID: SPDXRef-File-InvokeLockfileAnalysis
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 2 - Parses npm/yarn/pnpm lockfiles for compromised package versions
+
+FileName: ./Private/Find-ForensicArtifacts.ps1
+SPDXID: SPDXRef-File-FindForensicArtifacts
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 3 - Scans node_modules for malicious packages and C2 indicators
+
+FileName: ./Private/Invoke-NpmCacheScan.ps1
+SPDXID: SPDXRef-File-InvokeNpmCacheScan
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 4 - Inspects npm cache and global installs for malicious tarballs
+
+FileName: ./Private/Search-DroppedPayloads.ps1
+SPDXID: SPDXRef-File-SearchDroppedPayloads
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 5 - Scans temp/appdata for RAT payloads by magic bytes and timestamps
+
+FileName: ./Private/Find-PersistenceArtifacts.ps1
+SPDXID: SPDXRef-File-FindPersistenceArtifacts
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 6 - Platform-specific persistence mechanism scanning
+
+FileName: ./Private/Search-XorEncodedC2.ps1
+SPDXID: SPDXRef-File-SearchXorEncodedC2
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 7 - XOR-decodes files searching for obfuscated C2 indicators
+
+FileName: ./Private/Get-NetworkEvidence.ps1
+SPDXID: SPDXRef-File-GetNetworkEvidence
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 8 - Active connections, DNS cache, firewall log analysis
+
+FileName: ./Private/New-ScanReport.ps1
+SPDXID: SPDXRef-File-NewScanReport
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 9 - Generates HTML technical forensic report
+
+FileName: ./Private/New-ExecBriefing.ps1
+SPDXID: SPDXRef-File-NewExecBriefing
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 9b - Generates HTML executive briefing
+
+FileName: ./Private/New-ScanLogHtml.ps1
+SPDXID: SPDXRef-File-NewScanLogHtml
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 9a - Converts plaintext scan log to styled HTML
+
+FileName: ./Private/Send-ScanReport.ps1
+SPDXID: SPDXRef-File-SendScanReport
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Optional SMTP email delivery of reports
+
+FileName: ./Private/Submit-ScanToApi.ps1
+SPDXID: SPDXRef-File-SubmitScanToApi
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Check 10 - Submits results to Cloudflare Worker API
+
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-InvokeRatCatcher
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-GetNodeProjects
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-InvokeLockfileAnalysis
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-FindForensicArtifacts
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-InvokeNpmCacheScan
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-SearchDroppedPayloads
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-FindPersistenceArtifacts
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-SearchXorEncodedC2
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-GetNetworkEvidence
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-NewScanReport
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-NewExecBriefing
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-NewScanLogHtml
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-SendScanReport
+Relationship: SPDXRef-Scanner CONTAINS SPDXRef-File-SubmitScanToApi
+
+## Scanner Runtime Dependency: PowerShell 7.0+
+
+PackageName: PowerShell
+SPDXID: SPDXRef-PowerShell
+PackageVersion: 7.0
+PackageSupplier: Organization: Microsoft
+PackageDownloadLocation: https://github.com/PowerShell/PowerShell
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) Microsoft Corporation
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:github/PowerShell/PowerShell@v7.0.0
+
+Relationship: SPDXRef-Scanner DEPENDS_ON SPDXRef-PowerShell
+
+## Scanner Runtime Dependency: .NET Runtime (via PowerShell)
+
+PackageName: dotnet-runtime
+SPDXID: SPDXRef-DotNetRuntime
+PackageVersion: NOASSERTION
+PackageSupplier: Organization: Microsoft
+PackageDownloadLocation: https://dotnet.microsoft.com/download
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) .NET Foundation
+PackageSummary: <text>.NET BCL classes used: System.Text.Encoding, System.IO.File, System.IO.MemoryStream, System.IO.Path, System.Convert, System.Collections.Generic.List, System.Security.Cryptography (via Get-FileHash), System.Uri</text>
+PrimaryPackagePurpose: FRAMEWORK
+
+Relationship: SPDXRef-PowerShell DEPENDS_ON SPDXRef-DotNetRuntime
+
+## ============================================================================
+## Component: Cloudflare Worker Dashboard
+## ============================================================================
+
+PackageName: RatCatcher-Dashboard
+SPDXID: SPDXRef-Dashboard
+PackageVersion: 1.0.0
+PackageSupplier: Person: Mark Berry
+PackageDownloadLocation: https://github.com/mbfromit/RatCatcher
+FilesAnalyzed: true
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Cloudflare Worker serving admin dashboard, submission API, AI verification engine, and report management. Zero runtime npm dependencies.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:generic/ratcatcher-dashboard@1.0.0
+
+Relationship: SPDXRef-RatCatcher CONTAINS SPDXRef-Dashboard
+
+## Dashboard Source Files
+
+FileName: ./cloudflare/src/index.js
+SPDXID: SPDXRef-File-IndexJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Worker entry point - request routing and cron trigger handler
+
+FileName: ./cloudflare/src/util.js
+SPDXID: SPDXRef-File-UtilJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Shared utilities - JSON responses, password auth, HTML escaping
+
+FileName: ./cloudflare/src/handlers/submit.js
+SPDXID: SPDXRef-File-SubmitJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Receives scanner submissions, stores reports in R2, inserts D1 rows
+
+FileName: ./cloudflare/src/handlers/api.js
+SPDXID: SPDXRef-File-ApiJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Admin API - stats, submissions, report serving, export, filtering
+
+FileName: ./cloudflare/src/handlers/dashboard.js
+SPDXID: SPDXRef-File-DashboardJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Server-rendered single-page dashboard HTML/CSS/JS
+
+FileName: ./cloudflare/src/handlers/ack.js
+SPDXID: SPDXRef-File-AckJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: Finding acknowledgement CRUD, manager certification, verdict override
+
+FileName: ./cloudflare/src/handlers/ai-verify.js
+SPDXID: SPDXRef-File-AiVerifyJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: AI verification engine - calls Gemma 4 31B via Cloudflare Tunnel
+
+FileName: ./cloudflare/src/handlers/userReport.js
+SPDXID: SPDXRef-File-UserReportJs
+FileType: SOURCE
+LicenseConcluded: NOASSERTION
+FileCopyrightText: NOASSERTION
+FileComment: User-facing report endpoint with ownership verification
+
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-IndexJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-UtilJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-SubmitJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-ApiJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-DashboardJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-AckJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-AiVerifyJs
+Relationship: SPDXRef-Dashboard CONTAINS SPDXRef-File-UserReportJs
+
+## ============================================================================
+## Dashboard Dependencies (devDependencies only - no runtime dependencies)
+## ============================================================================
+
+PackageName: wrangler
+SPDXID: SPDXRef-Pkg-wrangler
+PackageVersion: 3.114.17
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://www.npmjs.com/package/wrangler
+PackageLicenseConcluded: MIT AND Apache-2.0
+PackageLicenseDeclared: MIT AND Apache-2.0
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PackageSummary: <text>Cloudflare Worker CLI for local development, testing, and deployment. DEV_DEPENDENCY_OF dashboard - not included in production runtime.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/wrangler@3.114.17
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:cloudflare:wrangler:3.114.17:*:*:*:*:node.js:*:*
+
+Relationship: SPDXRef-Dashboard DEV_DEPENDENCY_OF SPDXRef-Pkg-wrangler
+
+PackageName: vitest
+SPDXID: SPDXRef-Pkg-vitest
+PackageVersion: 2.1.9
+PackageSupplier: Organization: Vitest Team
+PackageDownloadLocation: https://www.npmjs.com/package/vitest
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) 2021-Present Vitest Team
+PackageSummary: <text>Unit test framework. DEV_DEPENDENCY_OF dashboard - not included in production runtime.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/vitest@2.1.9
+ExternalRef: SECURITY cpe23Type cpe:2.3:a:vitest:vitest:2.1.9:*:*:*:*:node.js:*:*
+
+Relationship: SPDXRef-Dashboard DEV_DEPENDENCY_OF SPDXRef-Pkg-vitest
+
+## Notable Transitive Dependencies (via wrangler)
+
+PackageName: @cloudflare/workerd
+SPDXID: SPDXRef-Pkg-workerd
+PackageVersion: 1.20250718.0
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://www.npmjs.com/package/@cloudflare/workerd
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PackageSummary: <text>Local Cloudflare Worker runtime with platform-specific binaries (darwin-64, darwin-arm64, linux-64, linux-arm64, windows-64). Transitive dev dependency only.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/%40cloudflare/workerd@1.20250718.0
+
+Relationship: SPDXRef-Pkg-wrangler DEPENDS_ON SPDXRef-Pkg-workerd
+
+PackageName: @cloudflare/kv-asset-handler
+SPDXID: SPDXRef-Pkg-kvAssetHandler
+PackageVersion: 0.3.4
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://www.npmjs.com/package/@cloudflare/kv-asset-handler
+PackageLicenseConcluded: MIT AND BSD-3-Clause
+PackageLicenseDeclared: MIT AND BSD-3-Clause
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PrimaryPackagePurpose: LIBRARY
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/%40cloudflare/kv-asset-handler@0.3.4
+
+Relationship: SPDXRef-Pkg-wrangler DEPENDS_ON SPDXRef-Pkg-kvAssetHandler
+
+PackageName: @cloudflare/unenv-preset
+SPDXID: SPDXRef-Pkg-unenvPreset
+PackageVersion: 2.0.2
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://www.npmjs.com/package/@cloudflare/unenv-preset
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PrimaryPackagePurpose: LIBRARY
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/%40cloudflare/unenv-preset@2.0.2
+
+Relationship: SPDXRef-Pkg-wrangler DEPENDS_ON SPDXRef-Pkg-unenvPreset
+
+PackageName: esbuild
+SPDXID: SPDXRef-Pkg-esbuild
+PackageVersion: 0.17.19
+PackageSupplier: Person: Evan Wallace
+PackageDownloadLocation: https://www.npmjs.com/package/esbuild
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) 2020 Evan Wallace
+PackageSummary: <text>JavaScript bundler used by wrangler for Worker builds. Transitive dev dependency only.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/esbuild@0.17.19
+
+Relationship: SPDXRef-Pkg-wrangler DEPENDS_ON SPDXRef-Pkg-esbuild
+
+PackageName: mime
+SPDXID: SPDXRef-Pkg-mime
+PackageVersion: 3.0.0
+PackageSupplier: Person: Robert Kieffer
+PackageDownloadLocation: https://www.npmjs.com/package/mime
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) 2010 Benjamin Thomas, Robert Kieffer
+PrimaryPackagePurpose: LIBRARY
+ExternalRef: PACKAGE-MANAGER purl pkg:npm/mime@3.0.0
+
+Relationship: SPDXRef-Pkg-wrangler DEPENDS_ON SPDXRef-Pkg-mime
+
+## ============================================================================
+## Platform Dependencies (Cloudflare Workers Runtime)
+## ============================================================================
+
+PackageName: Cloudflare Workers Runtime
+SPDXID: SPDXRef-CFWorkersRuntime
+PackageVersion: NOASSERTION
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://developers.cloudflare.com/workers/
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PackageSummary: <text>Serverless JavaScript runtime. Provides fetch API, crypto.randomUUID(), AbortSignal.timeout(), Request/Response, URL/URLSearchParams, FormData, and ctx.waitUntil() APIs.</text>
+PrimaryPackagePurpose: OPERATING-SYSTEM
+
+Relationship: SPDXRef-Dashboard DEPENDS_ON SPDXRef-CFWorkersRuntime
+
+PackageName: Cloudflare D1
+SPDXID: SPDXRef-CFD1
+PackageVersion: NOASSERTION
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://developers.cloudflare.com/d1/
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PackageSummary: <text>Serverless SQLite database. Binding: DB. Production database: ratcatcher (b535d898-8007-4fc8-8f41-63da8dd1f1a3). APIs used: prepare(), bind(), run(), all(), first().</text>
+PrimaryPackagePurpose: APPLICATION
+
+Relationship: SPDXRef-Dashboard DEPENDS_ON SPDXRef-CFD1
+
+PackageName: Cloudflare R2
+SPDXID: SPDXRef-CFR2
+PackageVersion: NOASSERTION
+PackageSupplier: Organization: Cloudflare Inc.
+PackageDownloadLocation: https://developers.cloudflare.com/r2/
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: Copyright (c) Cloudflare Inc.
+PackageSummary: <text>S3-compatible object storage. Binding: BUCKET. Production bucket: ratcatcher-reports. APIs used: put(), get(), delete().</text>
+PrimaryPackagePurpose: APPLICATION
+
+Relationship: SPDXRef-Dashboard DEPENDS_ON SPDXRef-CFR2
+
+## ============================================================================
+## AI Dependency (currently offline)
+## ============================================================================
+
+PackageName: Gemma-4-31B
+SPDXID: SPDXRef-Gemma4
+PackageVersion: 31b
+PackageSupplier: Organization: Google
+PackageDownloadLocation: https://ollama.com/library/gemma4
+PackageLicenseConcluded: Gemma
+PackageLicenseDeclared: Gemma
+PackageCopyrightText: Copyright (c) Google LLC
+PackageSummary: <text>AI model used for finding verification. Served via Ollama on self-hosted AWS instance through Cloudflare Tunnel. STATUS: OFFLINE as of April 2026.</text>
+PrimaryPackagePurpose: APPLICATION
+ExternalRef: PACKAGE-MANAGER purl pkg:generic/google/gemma-4@31b
+
+Relationship: SPDXRef-Dashboard OPTIONAL_DEPENDENCY_OF SPDXRef-Gemma4
+
+PackageName: Ollama
+SPDXID: SPDXRef-Ollama
+PackageVersion: NOASSERTION
+PackageSupplier: Organization: Ollama
+PackageDownloadLocation: https://ollama.com
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+PackageCopyrightText: Copyright (c) Ollama
+PackageSummary: <text>Local LLM inference server hosting Gemma 4 31B. Accessed via Cloudflare Tunnel at AI_TUNNEL_URL. APIs used: /api/ps (status), /api/chat (inference), /api/generate (warmup). STATUS: OFFLINE.</text>
+PrimaryPackagePurpose: APPLICATION
+
+Relationship: SPDXRef-Gemma4 DEPENDS_ON SPDXRef-Ollama
+
+## ============================================================================
+## Test Dependencies
+## ============================================================================
+
+PackageName: Pester
+SPDXID: SPDXRef-Pester
+PackageVersion: NOASSERTION
+PackageSupplier: Organization: Pester Team
+PackageDownloadLocation: https://github.com/pester/Pester
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+PackageCopyrightText: Copyright (c) Pester Team
+PackageSummary: <text>PowerShell testing framework. 13 test files in Tests/ directory. TEST_DEPENDENCY_OF scanner.</text>
+PrimaryPackagePurpose: APPLICATION
+
+Relationship: SPDXRef-Scanner TEST_DEPENDENCY_OF SPDXRef-Pester

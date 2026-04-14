@@ -304,10 +304,9 @@ function _rcViewFull(){
       const ackScript = `<script>
 (function(){
   var SUB='${safeId}',B='${reportOrigin}/ratcatcher';
-  window._rcPW=window._rcPW||prompt('Admin password:','')||'';
-  var PW=window._rcPW;
-
-  function getHeaders(){return{'X-Admin-Password':PW,'Content-Type':'application/json'}}
+  function requirePW(){if(!window._rcPW)window._rcPW=prompt('Admin password:','')||'';return window._rcPW||''}
+  function clearPW(){window._rcPW=''}
+  function getHeaders(){return{'X-Admin-Password':window._rcPW||'','Content-Type':'application/json'}}
 
   // Modal
   var overlay=document.createElement('div');
@@ -339,6 +338,7 @@ function _rcViewFull(){
   document.getElementById('rc-m-save-threat').onclick=function(){saveAck(true,this)};
 
   function openModal(hash,el,pathText,isThreat,prefill){
+    if(!requirePW())return;
     currentHash=hash;currentEl=el;currentThreat=!!isThreat;
     var isEdit=!!prefill;
     var dlg=document.getElementById('rc-m-dialog');
@@ -380,6 +380,9 @@ function _rcViewFull(){
       if(res.status===200||res.status===201||res.status===409){
         closeModal();
         markDone(currentEl,reason,res.body.acknowledged_at||new Date().toISOString(),isThreat,currentHash);
+      } else if(res.status===401){
+        clearPW();
+        document.getElementById('rc-m-err').textContent='Wrong password. Click Save to try again.';
       } else {
         document.getElementById('rc-m-err').textContent=res.body.error||'Save failed.';
       }
@@ -423,6 +426,7 @@ function _rcViewFull(){
   }
 
   function undoAck(hash,el){
+    if(!requirePW())return;
     if(!confirm('Remove this acknowledgement? The finding will return to unreviewed.'))return;
     fetch(B+'/api/submissions/'+SUB+'/acks/'+hash,{method:'DELETE',headers:getHeaders()})
     .then(function(r){
@@ -445,6 +449,9 @@ function _rcViewFull(){
         wrap.appendChild(btn);
         wrap.appendChild(tbtn);
         el.appendChild(wrap);
+      } else if(r.status===401){
+        clearPW();
+        alert('Wrong password. Please try again.');
       } else {
         alert('Undo failed \u2014 please try again.');
       }
@@ -471,6 +478,7 @@ function _rcViewFull(){
   }
 
   function openBulkModal(isThreat){
+    if(!requirePW())return;
     var unacked=getUnackedFindings();
     if(!unacked.length){alert('All findings are already processed.');return;}
     var dlg=document.getElementById('rc-m-dialog');
@@ -517,7 +525,7 @@ function _rcViewFull(){
           if(res.status===200||res.status===201||res.status===409){
             done++;
             markDone(item.el,reason,res.body.acknowledged_at||new Date().toISOString(),!!isThreat,item.hash);
-          } else { failed++; }
+          } else if(res.status===401){clearPW();failed++;} else { failed++; }
           saveBtn.textContent='Saving... '+done+'/'+total;
         })
         .catch(function(){failed++});
@@ -603,7 +611,7 @@ function _rcViewFull(){
   }
 
   // Load existing acks then init
-  fetch(B+'/api/submissions/'+SUB+'/acks',{headers:{'X-Admin-Password':PW}})
+  fetch(B+'/api/submissions/'+SUB+'/acks',{headers:{'X-Admin-Password':window._rcPW||''}})
     .then(function(r){return r.ok?r.json():Promise.resolve({acks:[]})})
     .then(function(data){
       var map={};
